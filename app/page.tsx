@@ -51,7 +51,14 @@ const MOCK_SERVICES: Service[] = [
 
 export default function CloudLift() {
   const [view, setView] = useState<View>('landing');
-  const [services] = useState<Service[]>(MOCK_SERVICES);
+  const [services, setServices] = useState<Service[]>(MOCK_SERVICES);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+
+  const deleteService = (id: string) => {
+    setServices(services.filter(s => s.id !== id));
+    setActiveMenu(null);
+  };
 
   const StatusBadge = ({ status }: { status: ServiceStatus }) => {
     const colors = {
@@ -164,14 +171,36 @@ export default function CloudLift() {
             {/* Sidebar & Main Layout */}
             <div className="flex flex-1 overflow-hidden">
               {/* Sidebar */}
-              <aside className="w-64 bg-slate-900/50 border-r border-slate-800 flex flex-col">
-                <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-                  <div className="w-8 h-8 bg-indigo-600 rounded-sm flex items-center justify-center font-bold text-white">CL</div>
-                  <span className="text-xl font-semibold tracking-tight text-white">Cloud-Lift</span>
+              <motion.aside 
+                animate={{ width: isSidebarExpanded ? 256 : 80 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                className="bg-slate-900/50 border-r border-slate-800 flex flex-col relative"
+              >
+                <div className="p-6 border-b border-slate-800 flex items-center justify-between overflow-hidden">
+                  <div className="flex items-center gap-3 min-w-max">
+                    <div className="w-8 h-8 bg-indigo-600 rounded-sm flex items-center justify-center font-bold text-white shrink-0">CL</div>
+                    {isSidebarExpanded && (
+                      <motion.span 
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="text-xl font-semibold tracking-tight text-white whitespace-nowrap"
+                      >
+                        Cloud-Lift
+                      </motion.span>
+                    )}
+                  </div>
+                  <button 
+                    onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
+                    className="p-1.5 hover:bg-slate-800 rounded-sm text-slate-500 hover:text-white transition-colors"
+                  >
+                    <ChevronRight className={`w-4 h-4 transition-transform ${isSidebarExpanded ? 'rotate-180' : ''}`} />
+                  </button>
                 </div>
                 
-                <nav className="flex-1 p-4 space-y-1">
-                  <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold px-2 py-3">Infraestructura</div>
+                <nav className="flex-1 p-4 space-y-1 overflow-hidden">
+                  <div className={`text-[10px] uppercase tracking-widest text-slate-500 font-bold px-2 py-3 truncate ${!isSidebarExpanded ? 'text-center' : ''}`}>
+                    {isSidebarExpanded ? 'Infraestructura' : 'Infra'}
+                  </div>
                   {[
                     { icon: Layout, label: 'Panel Control', active: true },
                     { icon: Server, label: 'Servicios' },
@@ -180,13 +209,24 @@ export default function CloudLift() {
                     <button 
                       key={i} 
                       className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all ${item.active ? 'bg-slate-800 text-white border border-slate-700' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
+                      title={!isSidebarExpanded ? item.label : undefined}
                     >
-                      <item.icon className={`w-4 h-4 ${item.active ? 'text-indigo-400' : ''}`} />
-                      <span>{item.label}</span>
+                      <item.icon className={`w-4 h-4 shrink-0 ${item.active ? 'text-indigo-400' : ''}`} />
+                      {isSidebarExpanded && (
+                        <motion.span
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="whitespace-nowrap"
+                        >
+                          {item.label}
+                        </motion.span>
+                      )}
                     </button>
                   ))}
                   
-                  <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold px-2 py-3 mt-4">Observabilidad</div>
+                  <div className={`text-[10px] uppercase tracking-widest text-slate-500 font-bold px-2 py-3 mt-4 truncate ${!isSidebarExpanded ? 'text-center' : ''}`}>
+                    {isSidebarExpanded ? 'Observabilidad' : 'Obs'}
+                  </div>
                   {[
                     { icon: Activity, label: 'Logs', active: false },
                     { icon: Settings, label: 'Ajustes', active: false }
@@ -194,29 +234,46 @@ export default function CloudLift() {
                     <button 
                       key={i} 
                       className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all font-medium"
+                      title={!isSidebarExpanded ? item.label : undefined}
                     >
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.label}</span>
+                      <item.icon className="w-4 h-4 shrink-0" />
+                      {isSidebarExpanded && (
+                        <motion.span
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="whitespace-nowrap"
+                        >
+                          {item.label}
+                        </motion.span>
+                      )}
                     </button>
                   ))}
                 </nav>
 
                 <div className="p-4 border-t border-slate-800">
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-950 border border-slate-800">
-                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white">RA</div>
-                    <div className="flex-1 overflow-hidden">
-                      <p className="text-xs font-medium text-white truncate">rsv_admin</p>
-                      <p className="text-[10px] text-slate-500 truncate uppercase tracking-tighter">Plan Pro Activado</p>
-                    </div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-950 border border-slate-800 overflow-hidden">
+                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white shrink-0">RA</div>
+                    {isSidebarExpanded && (
+                      <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="flex-1 overflow-hidden"
+                      >
+                        <p className="text-xs font-medium text-white truncate">rsv_admin</p>
+                        <p className="text-[10px] text-slate-500 truncate uppercase tracking-tighter">Plan Pro Activado</p>
+                      </motion.div>
+                    )}
                   </div>
                   <button 
                     onClick={() => setView('landing')}
-                    className="w-full mt-4 flex items-center gap-2 px-3 py-2 rounded hover:bg-red-500/10 text-xs font-bold text-slate-500 hover:text-red-400 transition-all uppercase tracking-widest"
+                    className={`w-full mt-4 flex items-center gap-2 px-3 py-2 rounded hover:bg-red-500/10 text-xs font-bold text-slate-500 hover:text-red-400 transition-all uppercase tracking-widest ${!isSidebarExpanded ? 'justify-center px-0' : ''}`}
+                    title={!isSidebarExpanded ? 'Cerrar Sesión' : undefined}
                   >
-                    <LogOut className="w-3.5 h-3.5" /> Cerrar Sesión
+                    <LogOut className="w-3.5 h-3.5 shrink-0" /> 
+                    {isSidebarExpanded && <span>Cerrar Sesión</span>}
                   </button>
                 </div>
-              </aside>
+              </motion.aside>
 
               {/* Main Content Area */}
               <div className="flex-1 overflow-y-auto bg-[#020617]">
@@ -294,7 +351,7 @@ export default function CloudLift() {
                             </div>
                           </div>
                           
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 relative">
                             <a 
                               href={service.url} 
                               target="_blank" 
@@ -303,9 +360,44 @@ export default function CloudLift() {
                             >
                               Visitar
                             </a>
-                            <button className="p-2 hover:bg-slate-800 rounded transition-colors text-slate-500 hover:text-white">
-                              <Settings className="w-4 h-4" />
-                            </button>
+                            <div className="relative">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveMenu(activeMenu === service.id ? null : service.id);
+                                }}
+                                className={`p-2 rounded transition-colors ${activeMenu === service.id ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                              >
+                                <Settings className="w-4 h-4" />
+                              </button>
+
+                              <AnimatePresence>
+                                {activeMenu === service.id && (
+                                  <>
+                                    <div 
+                                      className="fixed inset-0 z-10" 
+                                      onClick={() => setActiveMenu(null)}
+                                    />
+                                    <motion.div
+                                      initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                                      exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                      className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-800 rounded-md shadow-xl z-20 py-1 overflow-hidden"
+                                    >
+                                      <button className="w-full px-4 py-2 text-left text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white uppercase tracking-widest flex items-center gap-2">
+                                        <Settings className="w-3.5 h-3.5" /> Configuraciones
+                                      </button>
+                                      <button 
+                                        onClick={() => deleteService(service.id)}
+                                        className="w-full px-4 py-2 text-left text-xs font-bold text-red-400 hover:bg-red-500/10 uppercase tracking-widest flex items-center gap-2"
+                                      >
+                                        <AlertCircle className="w-3.5 h-3.5" /> Eliminar Proyecto
+                                      </button>
+                                    </motion.div>
+                                  </>
+                                )}
+                              </AnimatePresence>
+                            </div>
                           </div>
                         </div>
                       ))}
