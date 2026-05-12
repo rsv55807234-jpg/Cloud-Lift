@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 
 // --- Types ---
-type View = 'landing' | 'dashboard' | 'deploy';
+type View = 'landing' | 'dashboard' | 'deploy' | 'service-settings';
 type ServiceStatus = 'live' | 'building' | 'failed' | 'idle';
 
 interface Service {
@@ -41,6 +41,21 @@ interface Service {
   url: string;
   repo: string;
 }
+
+interface ServiceSettingsData {
+  rootDir: string;
+  buildCommand: string;
+  outputDir: string;
+  installCommand: string;
+  syncWithGithub: boolean;
+}
+
+const MOCK_SETTINGS: Record<string, ServiceSettingsData> = {
+  '1': { rootDir: './', buildCommand: 'npm run build', outputDir: '.next', installCommand: 'npm install', syncWithGithub: true },
+  '2': { rootDir: './docs', buildCommand: 'npm run build', outputDir: 'dist', installCommand: 'npm install', syncWithGithub: false },
+  '3': { rootDir: './', buildCommand: 'npm run build', outputDir: 'dist', installCommand: 'npm install', syncWithGithub: true },
+  '4': { rootDir: './db', buildCommand: 'N/A', outputDir: 'N/A', installCommand: 'N/A', syncWithGithub: false },
+};
 
 const MOCK_SERVICES: Service[] = [
   { id: '1', name: 'api-gateway', type: 'Servicio Web', status: 'live', updatedAt: 'hace 2m', url: 'https://gateway.cloud-lift.app', repo: 'org/api-gateway' },
@@ -54,11 +69,26 @@ export default function CloudLift() {
   const [services, setServices] = useState<Service[]>(MOCK_SERVICES);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const [allSettings, setAllSettings] = useState<Record<string, ServiceSettingsData>>(MOCK_SETTINGS);
 
   const deleteService = (id: string) => {
     setServices(services.filter(s => s.id !== id));
     setActiveMenu(null);
   };
+
+  const updateSetting = (id: string, field: keyof ServiceSettingsData, value: any) => {
+    setAllSettings(prev => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        [field]: value
+      }
+    }));
+  };
+
+  const selectedService = services.find(s => s.id === selectedServiceId);
+  const currentSettings = selectedServiceId ? allSettings[selectedServiceId] : null;
 
   const StatusBadge = ({ status }: { status: ServiceStatus }) => {
     const colors = {
@@ -384,7 +414,14 @@ export default function CloudLift() {
                                       exit={{ opacity: 0, scale: 0.95, y: 10 }}
                                       className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-800 rounded-md shadow-xl z-20 py-1 overflow-hidden"
                                     >
-                                      <button className="w-full px-4 py-2 text-left text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white uppercase tracking-widest flex items-center gap-2">
+                                      <button 
+                                        onClick={() => {
+                                          setSelectedServiceId(service.id);
+                                          setView('service-settings');
+                                          setActiveMenu(null);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white uppercase tracking-widest flex items-center gap-2"
+                                      >
                                         <Settings className="w-3.5 h-3.5" /> Configuraciones
                                       </button>
                                       <button 
@@ -452,6 +489,175 @@ export default function CloudLift() {
           </motion.div>
         )}
 
+        {view === 'service-settings' && selectedService && currentSettings && (
+          <motion.div
+            key="service-settings"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="min-h-screen bg-[#020617] flex flex-col"
+          >
+            <nav className="flex items-center justify-between px-8 py-4 border-b border-slate-800 bg-slate-950">
+              <div className="flex items-center gap-4">
+                <button onClick={() => setView('dashboard')} className="p-2 hover:bg-slate-800 rounded transition-colors">
+                  <ChevronRight className="w-4 h-4 text-slate-400 rotate-180" />
+                </button>
+                <div className="flex flex-col">
+                  <h2 className="text-sm font-bold text-white uppercase tracking-widest">{selectedService.name}</h2>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Ajustes del Proyecto</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setView('dashboard')}
+                  className="px-4 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded hover:bg-indigo-500 transition-colors uppercase tracking-widest"
+                >
+                  Guardar Cambios
+                </button>
+              </div>
+            </nav>
+
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-4xl mx-auto p-8 space-y-12">
+                {/* General Settings */}
+                <section>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-6 border-l-2 border-indigo-500 pl-3">General</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Nombre del Proyecto</label>
+                      <input 
+                        type="text" 
+                        value={selectedService.name}
+                        disabled
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-4 py-2.5 text-sm text-slate-400 cursor-not-allowed"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Repositorio GitHub</label>
+                      <input 
+                        type="text" 
+                        value={selectedService.repo}
+                        disabled
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-4 py-2.5 text-sm text-slate-400 cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                {/* Build Settings */}
+                <section>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Configuración de Build & Despliegue</h3>
+                    <div className="flex items-center gap-2 px-3 py-1 bg-indigo-600/10 border border-indigo-500/20 rounded-full">
+                      <RefreshCw className={`w-3 h-3 text-indigo-400 ${currentSettings.syncWithGithub ? 'animate-spin' : ''}`} />
+                      <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Sincronización Automática</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Directorio Raíz (Root Directory)</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          value={currentSettings.rootDir}
+                          onChange={(e) => updateSetting(selectedService.id, 'rootDir', e.target.value)}
+                          className="flex-1 bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                        />
+                        <button 
+                          onClick={() => updateSetting(selectedService.id, 'syncWithGithub', !currentSettings.syncWithGithub)}
+                          className={`px-3 rounded border transition-all flex items-center gap-2 ${currentSettings.syncWithGithub ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-white'}`}
+                          title="Sincronizar con GitHub"
+                        >
+                          <Github className="w-4 h-4" />
+                          <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Sync</span>
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-600 italic">Sincroniza el directorio raíz con tu estructura de GitHub automáticamente.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Comando de Build</label>
+                      <input 
+                        type="text" 
+                        value={currentSettings.buildCommand}
+                        onChange={(e) => updateSetting(selectedService.id, 'buildCommand', e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Directorio de Salida (Output Directory)</label>
+                      <input 
+                        type="text" 
+                        value={currentSettings.outputDir}
+                        onChange={(e) => updateSetting(selectedService.id, 'outputDir', e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all font-mono"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Comando de Instalación</label>
+                      <input 
+                        type="text" 
+                        value={currentSettings.installCommand}
+                        onChange={(e) => updateSetting(selectedService.id, 'installCommand', e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                {/* Environment Variables */}
+                <section>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Variables de Entorno</h3>
+                    <button className="flex items-center justify-center w-6 h-6 rounded-sm bg-slate-800 text-slate-400 hover:text-white transition-colors">
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-12 gap-2">
+                      <div className="col-span-5 px-4 py-2 text-[10px] uppercase text-slate-500 font-bold tracking-widest bg-slate-900 border border-slate-800 rounded">Key</div>
+                      <div className="col-span-6 px-4 py-2 text-[10px] uppercase text-slate-500 font-bold tracking-widest bg-slate-900 border border-slate-800 rounded">Value</div>
+                      <div className="col-span-1"></div>
+                    </div>
+                    <div className="grid grid-cols-12 gap-2">
+                      <input type="text" value="API_KEY" readOnly className="col-span-5 bg-slate-950 border border-slate-800 rounded px-4 py-2 text-xs text-slate-400" />
+                      <input type="password" value="••••••••••••" readOnly className="col-span-6 bg-slate-950 border border-slate-800 rounded px-4 py-2 text-xs text-slate-400" />
+                      <button className="col-span-1 flex items-center justify-center p-2 text-slate-600 hover:text-red-400 transition-colors">
+                        <AlertCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-12 gap-2">
+                      <input type="text" value="NODE_ENV" readOnly className="col-span-5 bg-slate-950 border border-slate-800 rounded px-4 py-2 text-xs text-slate-400" />
+                      <input type="text" value="production" readOnly className="col-span-6 bg-slate-950 border border-slate-800 rounded px-4 py-2 text-xs text-slate-400" />
+                      <button className="col-span-1 flex items-center justify-center p-2 text-slate-600 hover:text-red-400 transition-colors">
+                        <AlertCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Danger Zone */}
+                <section className="pt-8 border-t border-slate-800">
+                  <h3 className="text-xs font-bold text-red-500 uppercase tracking-widest mb-6">Zona de Peligro</h3>
+                  <div className="p-6 border border-red-500/20 bg-red-500/5 rounded-lg flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-white mb-1">Eliminar este proyecto</h4>
+                      <p className="text-xs text-slate-500">Una vez que elimines un proyecto, no hay vuelta atrás. Por favor, asegúrate.</p>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        deleteService(selectedService.id);
+                        setView('dashboard');
+                      }}
+                      className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded uppercase tracking-widest transition-colors"
+                    >
+                      Eliminar Proyecto
+                    </button>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </motion.div>
+        )}
         {view === 'deploy' && (
           <motion.div
             key="deploy"
