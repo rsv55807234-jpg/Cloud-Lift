@@ -13,8 +13,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Cloud-Lift | Modern Deployment Platform',
-  description: 'Deploy and manage your web applications with ease. The developer-first cloud platform.',
+  title: 'Cloud-Lift | Plataforma de Despliegue Moderna',
+  description: 'Despliega y gestiona tus aplicaciones web con facilidad. La plataforma en la nube pensada para desarrolladores.',
 };
 
 export default function RootLayout({
@@ -23,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="es" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="font-sans antialiased text-slate-300 bg-[#020617]" suppressHydrationWarning>
         {children}
       </body>

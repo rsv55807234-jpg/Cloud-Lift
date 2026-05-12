@@ -35,7 +35,7 @@ type ServiceStatus = 'live' | 'building' | 'failed' | 'idle';
 interface Service {
   id: string;
   name: string;
-  type: 'Web Service' | 'Static Site' | 'Database';
+  type: 'Servicio Web' | 'Sitio Estático' | 'Base de Datos';
   status: ServiceStatus;
   updatedAt: string;
   url: string;
@@ -43,10 +43,10 @@ interface Service {
 }
 
 const MOCK_SERVICES: Service[] = [
-  { id: '1', name: 'api-gateway', type: 'Web Service', status: 'live', updatedAt: '2m ago', url: 'https://gateway.cloud-lift.app', repo: 'org/api-gateway' },
-  { id: '2', name: 'docs-site', type: 'Static Site', status: 'live', updatedAt: '15m ago', url: 'https://docs.cloud-lift.app', repo: 'org/docs' },
-  { id: '3', name: 'auth-worker', type: 'Web Service', status: 'building', updatedAt: 'Just now', url: 'https://auth.cloud-lift.app', repo: 'org/auth' },
-  { id: '4', name: 'prod-postgres', type: 'Database', status: 'live', updatedAt: '1h ago', url: 'db.host.internal', repo: 'N/A' },
+  { id: '1', name: 'api-gateway', type: 'Servicio Web', status: 'live', updatedAt: 'hace 2m', url: 'https://gateway.cloud-lift.app', repo: 'org/api-gateway' },
+  { id: '2', name: 'docs-site', type: 'Sitio Estático', status: 'live', updatedAt: 'hace 15m', url: 'https://docs.cloud-lift.app', repo: 'org/docs' },
+  { id: '3', name: 'auth-worker', type: 'Servicio Web', status: 'building', updatedAt: 'Ahora mismo', url: 'https://auth.cloud-lift.app', repo: 'org/auth' },
+  { id: '4', name: 'prod-postgres', type: 'Base de Datos', status: 'live', updatedAt: 'hace 1h', url: 'db.host.internal', repo: 'N/A' },
 ];
 
 export default function CloudLift() {
@@ -88,15 +88,15 @@ export default function CloudLift() {
                 <span className="font-semibold text-xl tracking-tighter text-white">Cloud-Lift</span>
               </div>
               <div className="hidden md:flex items-center gap-8 text-[11px] uppercase tracking-widest font-bold text-slate-500">
-                <a href="#" className="hover:text-white transition-colors">Documentation</a>
-                <a href="#" className="hover:text-white transition-colors">Pricing</a>
-                <a href="#" className="hover:text-white transition-colors">Enterprise</a>
+                <a href="#" className="hover:text-white transition-colors">Documentación</a>
+                <a href="#" className="hover:text-white transition-colors">Precios</a>
+                <a href="#" className="hover:text-white transition-colors">Empresa</a>
               </div>
               <button 
                 onClick={() => setView('dashboard')}
                 className="bg-indigo-600 text-white px-5 py-2 rounded-md text-xs font-bold hover:bg-indigo-500 transition-all flex items-center gap-2"
               >
-                Launch Console <ArrowRight className="w-3.5 h-3.5" />
+                Abrir Consola <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </nav>
 
@@ -112,25 +112,25 @@ export default function CloudLift() {
               >
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-sm bg-slate-900 border border-slate-800 text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-8">
                   <span className="bg-emerald-500 w-1.5 h-1.5 rounded-full animate-pulse" />
-                  Status: All Systems Operational
+                  Estado: Sistemas Operativos
                 </div>
                 <h1 className="text-6xl md:text-8xl font-bold text-white tracking-tighter mb-8 leading-[0.85]">
-                  Deploy with <br/>
-                  <span className="text-indigo-500">Geometric Precision.</span>
+                  Despliega con <br/>
+                  <span className="text-indigo-500">Precisión Geométrica.</span>
                 </h1>
                 <p className="text-lg text-slate-400 max-w-2xl mx-auto mb-12 leading-relaxed font-light">
-                  Professional infrastructure for modern web engineering. 
-                  Deploy to the edge in seconds with precise control over your cloud resources.
+                  Infraestructura profesional para ingeniería web moderna.
+                  Despliega al borde en segundos con control preciso sobre tus recursos en la nube.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <button 
                     onClick={() => setView('dashboard')}
                     className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3.5 rounded-sm font-bold text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-3"
                   >
-                    Get Started Free
+                    Empezar Gratis
                   </button>
                   <button className="w-full sm:w-auto bg-slate-900 border border-slate-800 hover:bg-slate-800 text-white px-8 py-3.5 rounded-sm font-bold text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-3">
-                    <Github className="w-4 h-4" /> View Docs
+                    <Github className="w-4 h-4" /> Ver Docs
                   </button>
                 </div>
               </motion.div>
@@ -138,9 +138,9 @@ export default function CloudLift() {
               {/* Feature Grid */}
               <div className="mt-32 grid grid-cols-1 md:grid-cols-3 gap-1 max-w-6xl w-full bg-slate-800 p-[1px]">
                 {[
-                  { icon: Zap, title: 'Edge Performance', desc: 'Global distribution with sub-50ms latency for all static assets and serverless functions.' },
-                  { icon: Shield, title: 'Identity Isolation', desc: 'Secure environments with automated TLS and built-in DDoS protection at the network layer.' },
-                  { icon: Globe, title: 'Global Sync', desc: 'Direct GitHub integration with automatic preview deployments for every pull request.' }
+                  { icon: Zap, title: 'Rendimiento Edge', desc: 'Distribución global con latencia inferior a 50 ms para todos los activos estáticos y funciones serverless.' },
+                  { icon: Shield, title: 'Aislamiento de Identidad', desc: 'Entornos seguros con TLS automatizado y protección DDoS integrada en la capa de red.' },
+                  { icon: Globe, title: 'Sincronización Global', desc: 'Integración directa con GitHub con despliegues de vista previa automáticos para cada pull request.' }
                 ].map((feature, i) => (
                   <div key={i} className="p-10 bg-[#020617] hover:bg-slate-900 transition-colors group">
                     <feature.icon className="w-8 h-8 text-indigo-500 mb-6" />
@@ -171,11 +171,11 @@ export default function CloudLift() {
                 </div>
                 
                 <nav className="flex-1 p-4 space-y-1">
-                  <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold px-2 py-3">Infrastructure</div>
+                  <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold px-2 py-3">Infraestructura</div>
                   {[
-                    { icon: Layout, label: 'Dashboard', active: true },
-                    { icon: Server, label: 'Services' },
-                    { icon: Database, label: 'Databases' },
+                    { icon: Layout, label: 'Panel Control', active: true },
+                    { icon: Server, label: 'Servicios' },
+                    { icon: Database, label: 'Bases de Datos' },
                   ].map((item, i) => (
                     <button 
                       key={i} 
@@ -186,10 +186,10 @@ export default function CloudLift() {
                     </button>
                   ))}
                   
-                  <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold px-2 py-3 mt-4">Observability</div>
+                  <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold px-2 py-3 mt-4">Observabilidad</div>
                   {[
                     { icon: Activity, label: 'Logs', active: false },
-                    { icon: Settings, label: 'Settings', active: false }
+                    { icon: Settings, label: 'Ajustes', active: false }
                   ].map((item, i) => (
                     <button 
                       key={i} 
@@ -206,14 +206,14 @@ export default function CloudLift() {
                     <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white">RA</div>
                     <div className="flex-1 overflow-hidden">
                       <p className="text-xs font-medium text-white truncate">rsv_admin</p>
-                      <p className="text-[10px] text-slate-500 truncate uppercase tracking-tighter">Pro Plan Enabled</p>
+                      <p className="text-[10px] text-slate-500 truncate uppercase tracking-tighter">Plan Pro Activado</p>
                     </div>
                   </div>
                   <button 
                     onClick={() => setView('landing')}
                     className="w-full mt-4 flex items-center gap-2 px-3 py-2 rounded hover:bg-red-500/10 text-xs font-bold text-slate-500 hover:text-red-400 transition-all uppercase tracking-widest"
                   >
-                    <LogOut className="w-3.5 h-3.5" /> Log Out
+                    <LogOut className="w-3.5 h-3.5" /> Cerrar Sesión
                   </button>
                 </div>
               </aside>
@@ -222,16 +222,16 @@ export default function CloudLift() {
               <div className="flex-1 overflow-y-auto bg-[#020617]">
                 <header className="h-16 border-b border-slate-800 flex items-center justify-between px-8 bg-slate-900/20">
                   <div className="flex items-center gap-4 text-sm">
-                    <span className="text-slate-500">Infrastructure</span>
+                    <span className="text-slate-500">Infraestructura</span>
                     <span className="text-slate-700">/</span>
-                    <span className="text-white font-medium">Services Overview</span>
+                    <span className="text-white font-medium">Resumen de Servicios</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <button 
                       onClick={() => setView('deploy')}
                       className="px-4 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded hover:bg-indigo-500 transition-colors uppercase tracking-widest"
                     >
-                      New Service
+                      Nuevo Servicio
                     </button>
                   </div>
                 </header>
@@ -240,10 +240,10 @@ export default function CloudLift() {
                   {/* Metric Stats */}
                   <div className="grid grid-cols-12 gap-6 mb-8">
                     {[
-                      { label: 'System Uptime', value: '99.99%', sub: 'Healthy', color: 'bg-emerald-500' },
-                      { label: 'Edge Traffic', value: '1.2M', sub: 'Last 24h', color: 'bg-blue-500' },
-                      { label: 'Active Builds', value: '03', sub: 'Running', color: 'bg-indigo-500' },
-                      { label: 'Global Nodes', value: '14', sub: 'Edge sites', color: 'bg-amber-500' }
+                      { label: 'Tiempo de Actividad', value: '99.99%', sub: 'Saludable', color: 'bg-emerald-500' },
+                      { label: 'Tráfico Edge', value: '1.2M', sub: 'Últimas 24h', color: 'bg-blue-500' },
+                      { label: 'Builds Activos', value: '03', sub: 'En ejecución', color: 'bg-indigo-500' },
+                      { label: 'Nodos Globales', value: '14', sub: 'Sitios Edge', color: 'bg-amber-500' }
                     ].map((stat, i) => (
                       <div key={i} className="col-span-12 sm:col-span-6 lg:col-span-3 bg-slate-900/50 border border-slate-800 p-5 rounded-lg">
                         <p className="text-[10px] uppercase text-slate-500 tracking-widest mb-2 font-bold">{stat.label}</p>
@@ -259,12 +259,12 @@ export default function CloudLift() {
                   <div className="grid grid-cols-12 gap-6">
                     <div className="col-span-12 lg:col-span-8 space-y-4">
                       <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Active Services</h4>
+                        <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Servicios Activos</h4>
                         <div className="relative">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
                           <input 
                             type="text" 
-                            placeholder="Filter..." 
+                            placeholder="Filtrar..." 
                             className="bg-slate-950 border border-slate-800 rounded-md pl-9 pr-4 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-48"
                           />
                         </div>
@@ -277,7 +277,7 @@ export default function CloudLift() {
                         >
                           <div className="flex items-center gap-5">
                             <div className={`w-10 h-10 rounded-sm bg-slate-950 border border-slate-800 flex items-center justify-center`}>
-                              {service.type === 'Web Service' ? <Server className="w-5 h-5 text-indigo-400" /> : service.type === 'Static Site' ? <Globe className="w-5 h-5 text-blue-400" /> : <Database className="w-5 h-5 text-emerald-400" />}
+                              {service.type === 'Servicio Web' ? <Server className="w-5 h-5 text-indigo-400" /> : service.type === 'Sitio Estático' ? <Globe className="w-5 h-5 text-blue-400" /> : <Database className="w-5 h-5 text-emerald-400" />}
                             </div>
                             <div>
                               <div className="flex items-center gap-3 mb-1">
@@ -289,7 +289,7 @@ export default function CloudLift() {
                               <div className="flex items-center gap-4 text-[10px] text-slate-500 font-mono uppercase tracking-tighter">
                                 <span>{service.repo}</span>
                                 <span className="w-1 h-1 rounded-full bg-slate-700" />
-                                <span>Updated {service.updatedAt}</span>
+                                <span>Actualizado {service.updatedAt}</span>
                               </div>
                             </div>
                           </div>
@@ -301,7 +301,7 @@ export default function CloudLift() {
                               rel="noreferrer" 
                               className="px-3 py-1.5 text-[10px] font-bold text-slate-300 uppercase rounded border border-slate-800 hover:bg-slate-800 transition-all"
                             >
-                              Visit
+                              Visitar
                             </a>
                             <button className="p-2 hover:bg-slate-800 rounded transition-colors text-slate-500 hover:text-white">
                               <Settings className="w-4 h-4" />
@@ -314,17 +314,17 @@ export default function CloudLift() {
                     {/* Sidebar Context Area */}
                     <div className="col-span-12 lg:col-span-4 space-y-6">
                       <div className="bg-slate-900 border border-slate-800 p-6 rounded-lg">
-                        <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-4 border-l-2 border-indigo-500 pl-3">Live Logs</h4>
+                        <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-4 border-l-2 border-indigo-500 pl-3">Logs en Vivo</h4>
                         <div className="bg-black/40 rounded p-4 font-mono text-[10px] space-y-1 h-64 overflow-hidden relative">
-                          <p className="text-slate-500">[12:04:11] Starting build</p>
-                          <p className="text-slate-500">[12:04:15] Dependency fetch...</p>
+                          <p className="text-slate-500">[12:04:11] Iniciando build</p>
+                          <p className="text-slate-500">[12:04:15] Buscando dependencias...</p>
                           <p className="text-slate-400">[12:04:32] Cache hit: node_modules</p>
-                          <p className="text-indigo-400">[12:05:01] Build size: 1.42MB</p>
-                          <p className="text-emerald-400">[12:05:05] Edge Propagating...</p>
-                          <p className="text-emerald-500">[12:05:12] LIVE: gateway.cloud-lift.app</p>
+                          <p className="text-indigo-400">[12:05:01] Tamaño del build: 1.42MB</p>
+                          <p className="text-emerald-400">[12:05:05] Propagando Edge...</p>
+                          <p className="text-emerald-500">[12:05:12] EN VIVO: gateway.cloud-lift.app</p>
                           <div className="absolute bottom-4 left-4 flex items-center gap-2">
                             <div className="w-1 h-3 bg-indigo-500 animate-pulse"></div>
-                            <span className="text-slate-600">IDLE</span>
+                            <span className="text-slate-600">INACTIVO</span>
                           </div>
                         </div>
                       </div>
@@ -332,13 +332,13 @@ export default function CloudLift() {
                       <div className="bg-indigo-900/10 border border-indigo-500/20 p-6 rounded-lg">
                         <div className="flex items-center gap-3 mb-4">
                           <Github className="w-5 h-5 text-white" />
-                          <h5 className="text-xs font-semibold text-white uppercase tracking-widest">Git Linkage</h5>
+                          <h5 className="text-xs font-semibold text-white uppercase tracking-widest">Enlace Git</h5>
                         </div>
                         <p className="text-[11px] text-slate-400 mb-6 leading-relaxed">
-                          Connected to <span className="text-white font-mono">github.com/cloud-lift/monorepo</span>. All pushes to <span className="text-white font-mono">main</span> trigger automatic deploys.
+                          Conectado a <span className="text-white font-mono">github.com/cloud-lift/monorepo</span>. Todos los pushes a <span className="text-white font-mono">main</span> activan despliegues automáticos.
                         </p>
                         <button className="w-full py-2 bg-slate-800 text-[10px] font-bold text-white uppercase rounded border border-slate-700 hover:bg-slate-700 transition-all tracking-widest">
-                          Force Manual Build
+                          Forzar Build Manual
                         </button>
                       </div>
                     </div>
@@ -350,8 +350,8 @@ export default function CloudLift() {
             {/* Status Bar */}
             <footer className="h-8 bg-slate-950 border-t border-slate-800 flex items-center px-6 justify-between text-[10px] font-mono">
               <div className="flex items-center gap-6 text-slate-500 uppercase tracking-tighter">
-                <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Systems Operational</span>
-                <span>Latency: 42ms</span>
+                <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Sistemas Operativos</span>
+                <span>Latencia: 42ms</span>
               </div>
               <div className="text-slate-700 font-bold tracking-widest uppercase">
                 CL-Core-v2.4
@@ -373,13 +373,13 @@ export default function CloudLift() {
                 <button onClick={() => setView('dashboard')} className="p-2 hover:bg-slate-800 rounded transition-colors">
                   <ChevronRight className="w-4 h-4 text-slate-400 rotate-180" />
                 </button>
-                <h2 className="text-sm font-bold text-white uppercase tracking-widest">New Service Deployment</h2>
+                <h2 className="text-sm font-bold text-white uppercase tracking-widest">Despliegue de Nuevo Servicio</h2>
               </div>
               <button 
                 onClick={() => setView('dashboard')}
                 className="text-slate-500 hover:text-white text-[10px] uppercase tracking-widest font-bold"
               >
-                Exit Deployment
+                Salir del Despliegue
               </button>
             </nav>
 
@@ -389,15 +389,15 @@ export default function CloudLift() {
                   <div className="bg-indigo-600 w-12 h-12 rounded-sm flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_-5px_rgba(79,70,229,0.5)]">
                     <Github className="w-6 h-6 text-white" />
                   </div>
-                  <h1 className="text-4xl font-bold text-white mb-4 tracking-tighter">Connect To Edge</h1>
-                  <p className="text-slate-500 uppercase tracking-widest text-[10px] font-bold">Select repository source</p>
+                  <h1 className="text-4xl font-bold text-white mb-4 tracking-tighter">Conectar al Borde</h1>
+                  <p className="text-slate-500 uppercase tracking-widest text-[10px] font-bold">Seleccionar repositorio de origen</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-1 bg-slate-800 p-[1px]">
                   {[
-                    { name: 'awesome-web-app', updated: '2h ago', language: 'TypeScript' },
-                    { name: 'nextjs-dashboard', updated: '1d ago', language: 'JavaScript' },
-                    { name: 'python-api-v2', updated: '3d ago', language: 'Python' },
+                    { name: 'awesome-web-app', updated: 'hace 2h', language: 'TypeScript' },
+                    { name: 'nextjs-dashboard', updated: 'hace 1d', language: 'JavaScript' },
+                    { name: 'python-api-v2', updated: 'hace 3d', language: 'Python' },
                   ].map((repo, i) => (
                     <div 
                       key={i} 
@@ -417,7 +417,7 @@ export default function CloudLift() {
                         </div>
                       </div>
                       <button className="bg-indigo-600 text-white px-4 py-1.5 rounded-sm text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all">
-                        Connect
+                        Conectar
                       </button>
                     </div>
                   ))}
@@ -426,9 +426,9 @@ export default function CloudLift() {
                 <div className="mt-12 p-6 rounded-lg bg-indigo-900/5 border border-indigo-500/20 flex gap-4">
                   <AlertCircle className="w-5 h-5 text-indigo-400 shrink-0" />
                   <div>
-                    <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-2">Automated Discovery</h4>
+                    <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-2">Descubrimiento Automático</h4>
                     <p className="text-[11px] text-slate-500 leading-relaxed">
-                      We&apos;ll automatically detect environments and suggest optimal build settings. Deployment logic follows geometric branch patterns for maximum isolation.
+                      Detectaremos automáticamente los entornos y sugeriremos ajustes de build óptimos. La lógica de despliegue sigue patrones de rama geométricos para el máximo aislamiento.
                     </p>
                   </div>
                 </div>
