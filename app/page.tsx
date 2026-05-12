@@ -30,6 +30,7 @@ import {
 
 // --- Types ---
 type View = 'landing' | 'dashboard' | 'deploy' | 'service-settings' | 'services' | 'databases' | 'logs' | 'settings' | 'billing' | 'api-tokens';
+type DeployStep = 'select' | 'configure' | 'deploying';
 type ServiceStatus = 'live' | 'building' | 'failed' | 'idle';
 
 interface ApiToken {
@@ -93,6 +94,18 @@ export default function CloudLift() {
   // New States
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
   const [apiTokens, setApiTokens] = useState<ApiToken[]>(MOCK_TOKENS);
+  
+  // Deploy State
+  const [deployStep, setDeployStep] = useState<DeployStep>('select');
+  const [selectedRepo, setSelectedRepo] = useState<any>(null);
+  const [deploySettings, setDeploySettings] = useState({
+    name: '',
+    framework: 'nextjs',
+    branch: 'main',
+    rootDir: './',
+    buildCommand: 'npm run build',
+    outputDir: '.next'
+  });
 
   const deleteService = (id: string) => {
     setServices(services.filter(s => s.id !== id));
@@ -1048,69 +1061,267 @@ export default function CloudLift() {
           >
             <nav className="flex items-center justify-between px-8 py-4 border-b border-slate-800 bg-slate-950">
               <div className="flex items-center gap-4">
-                <button onClick={() => setView('dashboard')} className="p-2 hover:bg-slate-800 rounded transition-colors">
+                <button 
+                  onClick={() => {
+                    if (deployStep === 'configure') setDeployStep('select');
+                    else setView('dashboard');
+                  }} 
+                  className="p-2 hover:bg-slate-800 rounded transition-colors"
+                >
                   <ChevronRight className="w-4 h-4 text-slate-400 rotate-180" />
                 </button>
-                <h2 className="text-sm font-bold text-white uppercase tracking-widest">Despliegue de Nuevo Servicio</h2>
+                <h2 className="text-sm font-bold text-white uppercase tracking-widest">
+                  {deployStep === 'select' ? 'Seleccionar Repositorio' : 
+                   deployStep === 'configure' ? 'Configurar Proyecto' : 'Desplegando...'}
+                </h2>
               </div>
               <button 
                 onClick={() => setView('dashboard')}
                 className="text-slate-500 hover:text-white text-[10px] uppercase tracking-widest font-bold"
               >
-                Salir del Despliegue
+                Cancelar
               </button>
             </nav>
 
-            <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-900/10 via-transparent to-transparent">
-              <div className="max-w-2xl w-full">
-                <div className="text-center mb-16">
-                  <div className="bg-indigo-600 w-12 h-12 rounded-sm flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_-5px_rgba(79,70,229,0.5)]">
-                    <Github className="w-6 h-6 text-white" />
+            <div className="flex-1 overflow-y-auto bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-900/10 via-transparent to-transparent flex flex-col items-center py-12 px-8">
+              {deployStep === 'select' && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl w-full">
+                  <div className="text-center mb-12">
+                    <div className="bg-indigo-600 w-12 h-12 rounded-sm flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_-5px_rgba(79,70,229,0.5)]">
+                      <Github className="w-6 h-6 text-white" />
+                    </div>
+                    <h1 className="text-4xl font-bold text-white mb-4 tracking-tighter">Conectar repositorio</h1>
+                    <p className="text-slate-500 uppercase tracking-widest text-[10px] font-bold">Importa tus proyectos directamente desde GitHub</p>
                   </div>
-                  <h1 className="text-4xl font-bold text-white mb-4 tracking-tighter">Conectar al Borde</h1>
-                  <p className="text-slate-500 uppercase tracking-widest text-[10px] font-bold">Seleccionar repositorio de origen</p>
-                </div>
 
-                <div className="grid grid-cols-1 gap-1 bg-slate-800 p-[1px]">
-                  {[
-                    { name: 'awesome-web-app', updated: 'hace 2h', language: 'TypeScript' },
-                    { name: 'nextjs-dashboard', updated: 'hace 1d', language: 'JavaScript' },
-                    { name: 'python-api-v2', updated: 'hace 3d', language: 'Python' },
-                  ].map((repo, i) => (
-                    <div 
-                      key={i} 
-                      className="group bg-[#020617] p-6 flex items-center justify-between hover:bg-slate-900 transition-all cursor-pointer"
-                    >
-                      <div className="flex items-center gap-6">
-                        <div className="w-8 h-8 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center">
-                          <Github className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors" />
+                  <div className="bg-slate-900/50 border border-slate-800 rounded-lg overflow-hidden mb-8">
+                    <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-[10px] font-bold text-white">RA</div>
+                        <span className="text-xs font-bold text-white">rsv_admin / repos</span>
+                      </div>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                        <input type="text" placeholder="Buscar repositorio..." className="bg-slate-950 border border-slate-800 rounded pl-9 pr-4 py-1.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-indigo-500 w-48" />
+                      </div>
+                    </div>
+                    <div className="divide-y divide-slate-800">
+                      {[
+                        { name: 'awesome-web-app', updated: 'hace 2h', language: 'TypeScript' },
+                        { name: 'nextjs-dashboard', updated: 'hace 1d', language: 'JavaScript' },
+                        { name: 'python-api-v2', updated: 'hace 3d', language: 'Python' },
+                        { name: 'portfolio-v3', updated: 'hace 1 semana', language: 'Vue' },
+                      ].map((repo, i) => (
+                        <div 
+                          key={i} 
+                          onClick={() => {
+                            setSelectedRepo(repo);
+                            setDeploySettings(prev => ({ ...prev, name: repo.name }));
+                            setDeployStep('configure');
+                          }}
+                          className="group p-5 flex items-center justify-between hover:bg-indigo-600/5 transition-all cursor-pointer"
+                        >
+                          <div className="flex items-center gap-6">
+                            <div className="w-8 h-8 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center">
+                              <Github className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-white uppercase tracking-tight text-sm mb-1">{repo.name}</h3>
+                              <div className="flex items-center gap-3 text-[10px] text-slate-600 font-mono">
+                                <span>{repo.updated}</span>
+                                <span className="w-1 h-1 rounded-full bg-slate-800" />
+                                <span>{repo.language}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <button className="bg-indigo-600 text-white px-4 py-1.5 rounded-sm text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all">
+                            Importar
+                          </button>
                         </div>
-                        <div>
-                          <h3 className="font-bold text-white uppercase tracking-tight text-sm mb-1">{repo.name}</h3>
-                          <div className="flex items-center gap-3 text-[10px] text-slate-600 font-mono">
-                            <span>{repo.updated}</span>
-                            <span className="w-1 h-1 rounded-full bg-slate-800" />
-                            <span>{repo.language}</span>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {deployStep === 'configure' && selectedRepo && (
+                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl w-full">
+                  <div className="grid grid-cols-12 gap-8">
+                    <div className="col-span-12 lg:col-span-8 space-y-8">
+                      <section className="bg-slate-900 border border-slate-800 p-8 rounded-lg">
+                        <div className="flex items-center gap-4 mb-8">
+                           <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center">
+                              <Settings className="w-5 h-5 text-indigo-400" />
+                           </div>
+                           <div>
+                              <h3 className="text-xl font-bold text-white tracking-tight">Ajustes del Proyecto</h3>
+                              <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Configura tu despliegue</p>
+                           </div>
+                        </div>
+
+                        <div className="space-y-6">
+                          <div className="grid grid-cols-2 gap-6">
+                             <div className="space-y-2">
+                                <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Nombre del Proyecto</label>
+                                <input 
+                                  type="text" 
+                                  value={deploySettings.name}
+                                  onChange={(e) => setDeploySettings({...deploySettings, name: e.target.value})}
+                                  className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm font-medium focus:ring-1 focus:ring-indigo-500 outline-none" 
+                                />
+                             </div>
+                             <div className="space-y-2">
+                                <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Framework Preset</label>
+                                <select 
+                                  value={deploySettings.framework}
+                                  onChange={(e) => setDeploySettings({...deploySettings, framework: e.target.value})}
+                                  className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm font-medium focus:ring-1 focus:ring-indigo-500 outline-none appearance-none"
+                                >
+                                   <option value="nextjs">Next.js</option>
+                                   <option value="vite">Vite / React</option>
+                                   <option value="nuxt">Nuxt.js</option>
+                                   <option value="svelte">SvelteKit</option>
+                                   <option value="other">Otros (Estático)</option>
+                                </select>
+                             </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-6">
+                             <div className="space-y-2">
+                                <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Rama de Git (Branch)</label>
+                                <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded px-4 py-2.5">
+                                   <Zap className="w-3.5 h-3.5 text-slate-500" />
+                                   <input 
+                                     type="text" 
+                                     value={deploySettings.branch}
+                                     onChange={(e) => setDeploySettings({...deploySettings, branch: e.target.value})}
+                                     className="bg-transparent text-sm font-mono focus:outline-none w-full" 
+                                   />
+                                </div>
+                             </div>
+                             <div className="space-y-2">
+                                <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Directorio Raíz</label>
+                                <input 
+                                  type="text" 
+                                  value={deploySettings.rootDir}
+                                  onChange={(e) => setDeploySettings({...deploySettings, rootDir: e.target.value})}
+                                  className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm font-mono focus:ring-1 focus:ring-indigo-500 outline-none" 
+                                />
+                             </div>
                           </div>
                         </div>
-                      </div>
-                      <button className="bg-indigo-600 text-white px-4 py-1.5 rounded-sm text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all">
-                        Conectar
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                      </section>
 
-                <div className="mt-12 p-6 rounded-lg bg-indigo-900/5 border border-indigo-500/20 flex gap-4">
-                  <AlertCircle className="w-5 h-5 text-indigo-400 shrink-0" />
-                  <div>
-                    <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-2">Descubrimiento Automático</h4>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      Detectaremos automáticamente los entornos y sugeriremos ajustes de build óptimos. La lógica de despliegue sigue patrones de rama geométricos para el máximo aislamiento.
-                    </p>
+                      <section className="bg-slate-900 border border-slate-800 p-8 rounded-lg">
+                        <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3 mb-8">Build Settings (Opcional)</h4>
+                        <div className="space-y-6">
+                           <div className="space-y-2">
+                              <label className="text-[10px] uppercase font-bold text-slate-500">Build Command</label>
+                              <div className="flex items-center gap-3 bg-slate-950 border border-slate-800 rounded px-4 py-2.5 font-mono text-xs">
+                                 <span className="text-slate-600 bg-slate-900 px-2 rounded">$</span>
+                                 <input 
+                                   type="text" 
+                                   value={deploySettings.buildCommand}
+                                   onChange={(e) => setDeploySettings({...deploySettings, buildCommand: e.target.value})}
+                                   className="bg-transparent flex-1 focus:outline-none text-indigo-400" 
+                                 />
+                              </div>
+                           </div>
+                           <div className="space-y-2">
+                              <label className="text-[10px] uppercase font-bold text-slate-500">Output Directory</label>
+                              <input 
+                                type="text" 
+                                value={deploySettings.outputDir}
+                                onChange={(e) => setDeploySettings({...deploySettings, outputDir: e.target.value})}
+                                className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-xs font-mono focus:ring-1 focus:ring-indigo-500 outline-none" 
+                              />
+                           </div>
+                        </div>
+                      </section>
+                    </div>
+
+                    <div className="col-span-12 lg:col-span-4 space-y-6">
+                       <div className="bg-slate-900 border border-slate-800 p-6 rounded-lg sticky top-8">
+                          <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-6">Resumen</h4>
+                          <div className="space-y-4 mb-8">
+                             <div className="flex justify-between text-xs">
+                                <span className="text-slate-500">Repositorio</span>
+                                <span className="text-white font-mono">{selectedRepo.name}</span>
+                             </div>
+                             <div className="flex justify-between text-xs">
+                                <span className="text-slate-500">Tipo</span>
+                                <span className="text-white">Despliegue Edge</span>
+                             </div>
+                             <div className="flex justify-between text-xs">
+                                <span className="text-slate-500">Región</span>
+                                <span className="text-white">Global (14 nodos)</span>
+                             </div>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              setDeployStep('deploying');
+                              setTimeout(() => {
+                                const newService: Service = {
+                                  id: (services.length + 1).toString(),
+                                  name: deploySettings.name,
+                                  type: deploySettings.framework === 'other' ? 'Sitio Estático' : 'Servicio Web',
+                                  status: 'building',
+                                  updatedAt: 'Hace unos segundos',
+                                  url: `https://${deploySettings.name}.cloud-lift.app`,
+                                  repo: `org/${selectedRepo.name}`
+                                };
+                                
+                                setAllSettings(prev => ({
+                                  ...prev,
+                                  [newService.id]: {
+                                    rootDir: deploySettings.rootDir,
+                                    buildCommand: deploySettings.buildCommand,
+                                    outputDir: deploySettings.outputDir,
+                                    installCommand: 'npm install',
+                                    syncWithGithub: true
+                                  }
+                                }));
+                                
+                                setServices([newService, ...services]);
+                                setTimeout(() => {
+                                  setServices(prev => prev.map(s => s.id === newService.id ? { ...s, status: 'live' } : s));
+                                }, 10000);
+                                
+                                setView('dashboard');
+                                setDeployStep('select');
+                              }, 2000);
+                            }}
+                            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-widest rounded transition-all flex items-center justify-center gap-3 shadow-lg shadow-indigo-600/20"
+                          >
+                             Desplegar Proyecto <Rocket className="w-4 h-4" />
+                          </button>
+                       </div>
+
+                       <div className="bg-emerald-900/10 border border-emerald-500/20 p-6 rounded-lg flex gap-4">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                          <div>
+                            <h4 className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1">Detección Inteligente</h4>
+                            <p className="text-[10px] text-slate-500 leading-relaxed">
+                               Hemos detectado que tu proyecto usa {selectedRepo.language}. Los ajustes sugeridos están listos para producción.
+                            </p>
+                          </div>
+                       </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </motion.div>
+              )}
+
+              {deployStep === 'deploying' && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center h-full text-center">
+                   <div className="w-24 h-24 relative mb-8">
+                      <div className="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
+                      <div className="absolute inset-0 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                      <Rocket className="absolute inset-0 m-auto w-8 h-8 text-indigo-400 animate-pulse" />
+                   </div>
+                   <h2 className="text-2xl font-bold text-white mb-2">Preparando Despegue...</h2>
+                   <p className="text-slate-500 text-sm max-w-xs uppercase tracking-widest font-bold">Iniciando orquestación de recursos globales</p>
+                </motion.div>
+              )}
             </div>
           </motion.div>
         )}
