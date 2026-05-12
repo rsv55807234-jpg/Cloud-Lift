@@ -29,8 +29,15 @@ import {
 } from 'lucide-react';
 
 // --- Types ---
-type View = 'landing' | 'dashboard' | 'deploy' | 'service-settings';
+type View = 'landing' | 'dashboard' | 'deploy' | 'service-settings' | 'services' | 'databases' | 'logs' | 'settings' | 'billing' | 'api-tokens';
 type ServiceStatus = 'live' | 'building' | 'failed' | 'idle';
+
+interface ApiToken {
+  id: string;
+  name: string;
+  key: string;
+  createdAt: string;
+}
 
 interface Service {
   id: string;
@@ -43,18 +50,24 @@ interface Service {
 }
 
 interface ServiceSettingsData {
-  rootDir: string;
-  buildCommand: string;
-  outputDir: string;
-  installCommand: string;
-  syncWithGithub: boolean;
+  // Web Service Settings
+  rootDir?: string;
+  buildCommand?: string;
+  outputDir?: string;
+  installCommand?: string;
+  syncWithGithub?: boolean;
+  // Database Settings
+  dbVersion?: string;
+  dbStorage?: string;
+  dbRam?: string;
+  dbRegion?: string;
 }
 
 const MOCK_SETTINGS: Record<string, ServiceSettingsData> = {
   '1': { rootDir: './', buildCommand: 'npm run build', outputDir: '.next', installCommand: 'npm install', syncWithGithub: true },
   '2': { rootDir: './docs', buildCommand: 'npm run build', outputDir: 'dist', installCommand: 'npm install', syncWithGithub: false },
   '3': { rootDir: './', buildCommand: 'npm run build', outputDir: 'dist', installCommand: 'npm install', syncWithGithub: true },
-  '4': { rootDir: './db', buildCommand: 'N/A', outputDir: 'N/A', installCommand: 'N/A', syncWithGithub: false },
+  '4': { dbVersion: 'PostgreSQL 15.4', dbStorage: '20GB NVMe', dbRam: '4GB DDR4', dbRegion: 'us-east-1' },
 };
 
 const MOCK_SERVICES: Service[] = [
@@ -64,6 +77,11 @@ const MOCK_SERVICES: Service[] = [
   { id: '4', name: 'prod-postgres', type: 'Base de Datos', status: 'live', updatedAt: 'hace 1h', url: 'db.host.internal', repo: 'N/A' },
 ];
 
+const MOCK_TOKENS: ApiToken[] = [
+  { id: '1', name: 'Producción Gateway', key: 'cl_live_8f2...k92', createdAt: '2026-04-10' },
+  { id: '2', name: 'CLI Local', key: 'cl_live_2a1...p33', createdAt: '2026-05-01' },
+];
+
 export default function CloudLift() {
   const [view, setView] = useState<View>('landing');
   const [services, setServices] = useState<Service[]>(MOCK_SERVICES);
@@ -71,6 +89,10 @@ export default function CloudLift() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [allSettings, setAllSettings] = useState<Record<string, ServiceSettingsData>>(MOCK_SETTINGS);
+  
+  // New States
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
+  const [apiTokens, setApiTokens] = useState<ApiToken[]>(MOCK_TOKENS);
 
   const deleteService = (id: string) => {
     setServices(services.filter(s => s.id !== id));
@@ -190,9 +212,9 @@ export default function CloudLift() {
           </motion.div>
         )}
 
-        {view === 'dashboard' && (
+        {['dashboard', 'services', 'databases', 'logs', 'settings', 'billing', 'api-tokens'].includes(view) && (
           <motion.div
-            key="dashboard"
+            key="dashboard-shell"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -232,16 +254,17 @@ export default function CloudLift() {
                     {isSidebarExpanded ? 'Infraestructura' : 'Infra'}
                   </div>
                   {[
-                    { icon: Layout, label: 'Panel Control', active: true },
-                    { icon: Server, label: 'Servicios' },
-                    { icon: Database, label: 'Bases de Datos' },
+                    { icon: Layout, label: 'Panel Control', view: 'dashboard' as View },
+                    { icon: Server, label: 'Servicios', view: 'services' as View },
+                    { icon: Database, label: 'Bases de Datos', view: 'databases' as View },
                   ].map((item, i) => (
                     <button 
                       key={i} 
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all ${item.active ? 'bg-slate-800 text-white border border-slate-700' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
+                      onClick={() => setView(item.view)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all ${view === item.view ? 'bg-slate-800 text-white border border-slate-700' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
                       title={!isSidebarExpanded ? item.label : undefined}
                     >
-                      <item.icon className={`w-4 h-4 shrink-0 ${item.active ? 'text-indigo-400' : ''}`} />
+                      <item.icon className={`w-4 h-4 shrink-0 ${view === item.view ? 'text-indigo-400' : ''}`} />
                       {isSidebarExpanded && (
                         <motion.span
                           initial={{ opacity: 0 }}
@@ -258,15 +281,16 @@ export default function CloudLift() {
                     {isSidebarExpanded ? 'Observabilidad' : 'Obs'}
                   </div>
                   {[
-                    { icon: Activity, label: 'Logs', active: false },
-                    { icon: Settings, label: 'Ajustes', active: false }
+                    { icon: Activity, label: 'Logs', view: 'logs' as View },
+                    { icon: Settings, label: 'Ajustes', view: 'settings' as View }
                   ].map((item, i) => (
                     <button 
                       key={i} 
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all font-medium"
+                      onClick={() => setView(item.view)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all ${view === item.view ? 'bg-slate-800 text-white border border-slate-700' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
                       title={!isSidebarExpanded ? item.label : undefined}
                     >
-                      <item.icon className="w-4 h-4 shrink-0" />
+                      <item.icon className={`w-4 h-4 shrink-0 ${view === item.view ? 'text-indigo-400' : ''}`} />
                       {isSidebarExpanded && (
                         <motion.span
                           initial={{ opacity: 0 }}
@@ -307,11 +331,21 @@ export default function CloudLift() {
 
               {/* Main Content Area */}
               <div className="flex-1 overflow-y-auto bg-[#020617]">
-                <header className="h-16 border-b border-slate-800 flex items-center justify-between px-8 bg-slate-900/20">
+                <header className="h-16 border-b border-slate-800 flex items-center justify-between px-8 bg-slate-900/20 shrink-0">
                   <div className="flex items-center gap-4 text-sm">
-                    <span className="text-slate-500">Infraestructura</span>
+                    <span className="text-slate-500">
+                      {['dashboard', 'services', 'databases'].includes(view) ? 'Infraestructura' : 'Observabilidad'}
+                    </span>
                     <span className="text-slate-700">/</span>
-                    <span className="text-white font-medium">Resumen de Servicios</span>
+                    <span className="text-white font-medium lowercase first-letter:uppercase tracking-tight">
+                      {view === 'dashboard' ? 'Resumen General' : 
+                       view === 'services' ? 'Gestión de Servicios' :
+                       view === 'databases' ? 'Instancias de Base de Datos' :
+                       view === 'logs' ? 'Explorador de Logs' :
+                       view === 'settings' ? 'Ajustes de la Plataforma' : 
+                       view === 'billing' ? 'Facturación y Planes' :
+                       view === 'api-tokens' ? 'Configuración de API' : view}
+                    </span>
                   </div>
                   <div className="flex items-center gap-3">
                     <button 
@@ -324,54 +358,113 @@ export default function CloudLift() {
                 </header>
 
                 <div className="p-8">
-                  {/* Metric Stats */}
-                  <div className="grid grid-cols-12 gap-6 mb-8">
-                    {[
-                      { label: 'Tiempo de Actividad', value: '99.99%', sub: 'Saludable', color: 'bg-emerald-500' },
-                      { label: 'Tráfico Edge', value: '1.2M', sub: 'Últimas 24h', color: 'bg-blue-500' },
-                      { label: 'Builds Activos', value: '03', sub: 'En ejecución', color: 'bg-indigo-500' },
-                      { label: 'Nodos Globales', value: '14', sub: 'Sitios Edge', color: 'bg-amber-500' }
-                    ].map((stat, i) => (
-                      <div key={i} className="col-span-12 sm:col-span-6 lg:col-span-3 bg-slate-900/50 border border-slate-800 p-5 rounded-lg">
-                        <p className="text-[10px] uppercase text-slate-500 tracking-widest mb-2 font-bold">{stat.label}</p>
-                        <h3 className="text-2xl font-mono text-white mb-3">{stat.value}</h3>
-                        <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-                          <div className={`h-full ${stat.color} w-3/4`}></div>
+                  {view === 'dashboard' && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+                      {/* Metric Stats */}
+                      <div className="grid grid-cols-12 gap-6">
+                        {[
+                          { label: 'Tiempo de Actividad', value: '99.99%', sub: 'Saludable', color: 'bg-emerald-500' },
+                          { label: 'Tráfico Edge', value: '1.2M', sub: 'Últimas 24h', color: 'bg-blue-500' },
+                          { label: 'Builds Activos', value: '03', sub: 'En ejecución', color: 'bg-indigo-500' },
+                          { label: 'Nodos Globales', value: '14', sub: 'Sitios Edge', color: 'bg-amber-500' }
+                        ].map((stat, i) => (
+                          <div key={i} className="col-span-12 sm:col-span-6 lg:col-span-3 bg-slate-900/50 border border-slate-800 p-5 rounded-lg">
+                            <p className="text-[10px] uppercase text-slate-500 tracking-widest mb-2 font-bold">{stat.label}</p>
+                            <h3 className="text-2xl font-mono text-white mb-3">{stat.value}</h3>
+                            <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                              <div className={`h-full ${stat.color} w-3/4`}></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Dashboard Content */}
+                      <div className="grid grid-cols-12 gap-6">
+                        <div className="col-span-12 lg:col-span-8 space-y-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Estatus del Sistema</h4>
+                          </div>
+                          <div className="bg-slate-900/30 border border-slate-800 rounded-lg p-10 text-center">
+                            <Activity className="w-12 h-12 text-emerald-500 mx-auto mb-4 opacity-50" />
+                            <h3 className="text-white font-bold mb-2">Todos los sistemas operativos</h3>
+                            <p className="text-sm text-slate-500 max-w-sm mx-auto">Tu infraestructura está rindiendo de forma óptima. No se han detectado incidentes en las últimas 24 horas.</p>
+                          </div>
+
+                          <div className="flex items-center justify-between mb-4 mt-8">
+                            <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Despliegues Recientes</h4>
+                          </div>
+                          {services.slice(0, 2).map((service) => (
+                             <div key={service.id} className="bg-slate-900/50 border border-slate-800 p-4 rounded flex items-center justify-between">
+                               <div className="flex items-center gap-4">
+                                  <div className="w-8 h-8 rounded-sm bg-slate-800 flex items-center justify-center">
+                                    <Zap className="w-4 h-4 text-indigo-400" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-bold text-white">{service.name}</p>
+                                    <p className="text-[10px] text-slate-500 uppercase">Producción • {service.updatedAt}</p>
+                                  </div>
+                               </div>
+                               <StatusBadge status={service.status} />
+                             </div>
+                          ))}
+                        </div>
+                        <div className="col-span-12 lg:col-span-4">
+                           <div className="bg-indigo-600/5 border border-indigo-500/10 p-6 rounded-lg h-full">
+                              <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-4">Uso de Recursos</h4>
+                              <div className="space-y-6">
+                                {[
+                                  { label: 'CPU (Global)', val: 24, color: 'bg-indigo-500' },
+                                  { label: 'RAM (Global)', val: 68, color: 'bg-emerald-500' },
+                                  { label: 'Almacenamiento', val: 42, color: 'bg-blue-500' },
+                                ].map((bar, i) => (
+                                  <div key={i} className="space-y-2">
+                                     <div className="flex justify-between text-[10px] uppercase font-bold text-slate-500">
+                                       <span>{bar.label}</span>
+                                       <span>{bar.val}%</span>
+                                     </div>
+                                     <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                                        <motion.div 
+                                          initial={{ width: 0 }} 
+                                          animate={{ width: `${bar.val}%` }} 
+                                          className={`h-full ${bar.color}`} 
+                                        />
+                                     </div>
+                                  </div>
+                                ))}
+                              </div>
+                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </motion.div>
+                  )}
 
-                  {/* Services Row */}
-                  <div className="grid grid-cols-12 gap-6">
-                    <div className="col-span-12 lg:col-span-8 space-y-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Servicios Activos</h4>
+                  {(view === 'services' || (view === 'dashboard' && false)) && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                      <div className="flex items-center justify-between mb-6">
+                        <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Lista de Servicios</h4>
                         <div className="relative">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
                           <input 
                             type="text" 
-                            placeholder="Filtrar..." 
-                            className="bg-slate-950 border border-slate-800 rounded-md pl-9 pr-4 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-48"
+                            placeholder="Filtrar servicios..." 
+                            className="bg-slate-950 border border-slate-800 rounded-md pl-9 pr-4 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-64"
                           />
                         </div>
                       </div>
 
-                      {services.map((service) => (
+                      {services.filter(s => s.type !== 'Base de Datos').map((service) => (
                         <div 
                           key={service.id} 
                           className="bg-slate-900/80 border border-slate-800/80 p-5 rounded-md flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-slate-900 transition-all group"
                         >
                           <div className="flex items-center gap-5">
                             <div className={`w-10 h-10 rounded-sm bg-slate-950 border border-slate-800 flex items-center justify-center`}>
-                              {service.type === 'Servicio Web' ? <Server className="w-5 h-5 text-indigo-400" /> : service.type === 'Sitio Estático' ? <Globe className="w-5 h-5 text-blue-400" /> : <Database className="w-5 h-5 text-emerald-400" />}
+                              {service.type === 'Servicio Web' ? <Server className="w-5 h-5 text-indigo-400" /> : <Globe className="w-5 h-5 text-blue-400" />}
                             </div>
                             <div>
                               <div className="flex items-center gap-3 mb-1">
                                 <h3 className="font-bold text-white group-hover:text-indigo-400 transition-colors uppercase tracking-tight">{service.name}</h3>
-                                <span className={`text-[10px] px-2 py-0.5 rounded border ${service.status === 'live' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'}`}>
-                                  {service.status.toUpperCase()}
-                                </span>
+                                <StatusBadge status={service.status} />
                               </div>
                               <div className="flex items-center gap-4 text-[10px] text-slate-500 font-mono uppercase tracking-tighter">
                                 <span>{service.repo}</span>
@@ -404,15 +497,12 @@ export default function CloudLift() {
                               <AnimatePresence>
                                 {activeMenu === service.id && (
                                   <>
-                                    <div 
-                                      className="fixed inset-0 z-10" 
-                                      onClick={() => setActiveMenu(null)}
-                                    />
+                                    <div className="fixed inset-0 z-10" onClick={() => setActiveMenu(null)} />
                                     <motion.div
                                       initial={{ opacity: 0, scale: 0.95, y: 10 }}
                                       animate={{ opacity: 1, scale: 1, y: 0 }}
                                       exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                      className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-800 rounded-md shadow-xl z-20 py-1 overflow-hidden"
+                                      className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-800 rounded-md shadow-xl z-20 py-1"
                                     >
                                       <button 
                                         onClick={() => {
@@ -428,7 +518,7 @@ export default function CloudLift() {
                                         onClick={() => deleteService(service.id)}
                                         className="w-full px-4 py-2 text-left text-xs font-bold text-red-400 hover:bg-red-500/10 uppercase tracking-widest flex items-center gap-2"
                                       >
-                                        <AlertCircle className="w-3.5 h-3.5" /> Eliminar Proyecto
+                                        <AlertCircle className="w-3.5 h-3.5" /> Eliminar
                                       </button>
                                     </motion.div>
                                   </>
@@ -438,40 +528,282 @@ export default function CloudLift() {
                           </div>
                         </div>
                       ))}
-                    </div>
+                    </motion.div>
+                  )}
 
-                    {/* Sidebar Context Area */}
-                    <div className="col-span-12 lg:col-span-4 space-y-6">
-                      <div className="bg-slate-900 border border-slate-800 p-6 rounded-lg">
-                        <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-4 border-l-2 border-indigo-500 pl-3">Logs en Vivo</h4>
-                        <div className="bg-black/40 rounded p-4 font-mono text-[10px] space-y-1 h-64 overflow-hidden relative">
-                          <p className="text-slate-500">[12:04:11] Iniciando build</p>
-                          <p className="text-slate-500">[12:04:15] Buscando dependencias...</p>
-                          <p className="text-slate-400">[12:04:32] Cache hit: node_modules</p>
-                          <p className="text-indigo-400">[12:05:01] Tamaño del build: 1.42MB</p>
-                          <p className="text-emerald-400">[12:05:05] Propagando Edge...</p>
-                          <p className="text-emerald-500">[12:05:12] EN VIVO: gateway.cloud-lift.app</p>
-                          <div className="absolute bottom-4 left-4 flex items-center gap-2">
-                            <div className="w-1 h-3 bg-indigo-500 animate-pulse"></div>
-                            <span className="text-slate-600">INACTIVO</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-indigo-900/10 border border-indigo-500/20 p-6 rounded-lg">
-                        <div className="flex items-center gap-3 mb-4">
-                          <Github className="w-5 h-5 text-white" />
-                          <h5 className="text-xs font-semibold text-white uppercase tracking-widest">Enlace Git</h5>
-                        </div>
-                        <p className="text-[11px] text-slate-400 mb-6 leading-relaxed">
-                          Conectado a <span className="text-white font-mono">github.com/cloud-lift/monorepo</span>. Todos los pushes a <span className="text-white font-mono">main</span> activan despliegues automáticos.
-                        </p>
-                        <button className="w-full py-2 bg-slate-800 text-[10px] font-bold text-white uppercase rounded border border-slate-700 hover:bg-slate-700 transition-all tracking-widest">
-                          Forzar Build Manual
+                  {view === 'databases' && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                      <div className="flex items-center justify-between mb-6">
+                        <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Instancias Activas</h4>
+                        <button className="px-4 py-1.5 bg-emerald-600 text-white text-[10px] font-bold rounded uppercase tracking-widest hover:bg-emerald-500 transition-colors">
+                          Nueva Base de Datos
                         </button>
                       </div>
-                    </div>
-                  </div>
+
+                      {services.filter(s => s.type === 'Base de Datos').map((db) => (
+                        <div key={db.id} className="bg-slate-900 border border-slate-800 p-6 rounded-lg flex items-center justify-between group">
+                          <div className="flex items-center gap-6">
+                             <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 rounded flex items-center justify-center">
+                                <Database className="w-6 h-6 text-emerald-400" />
+                             </div>
+                             <div>
+                                <div className="flex items-center gap-3 mb-1">
+                                  <h3 className="font-bold text-white group-hover:text-emerald-400 transition-colors">{db.name}</h3>
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-bold uppercase tracking-tighter">Postgres 15</span>
+                                </div>
+                                <div className="flex items-center gap-4 text-[10px] text-slate-500 font-mono">
+                                  <span>{db.url}</span>
+                                  <span className="text-slate-700">|</span>
+                                  <span>4/5 Conexiones</span>
+                                </div>
+                             </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                             <button 
+                               onClick={() => {
+                                 setSelectedServiceId(db.id);
+                                 setView('service-settings');
+                               }}
+                               className="p-2 text-slate-500 hover:text-white rounded hover:bg-slate-800 transition-colors"
+                             >
+                                <Settings className="w-4 h-4" />
+                             </button>
+                             <button className="px-3 py-1.5 text-[10px] font-bold text-slate-300 uppercase bg-slate-800 border border-slate-700 rounded hover:bg-slate-700">Backup</button>
+                          </div>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+
+                  {view === 'logs' && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-[calc(100vh-12rem)] flex flex-col gap-4">
+                       <div className="flex items-center justify-between">
+                         <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Log Explorer</h4>
+                         <div className="flex items-center gap-2">
+                            <span className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[9px] font-bold text-emerald-500 uppercase tracking-widest">
+                               <RefreshCw className="w-3 h-3 animate-spin" /> Live Streaming
+                            </span>
+                         </div>
+                       </div>
+                       <div className="flex-1 bg-black border border-slate-800 rounded-lg p-6 font-mono text-xs overflow-y-auto space-y-1 custom-scrollbar shadow-inner">
+                          <p className="text-slate-500">[2026-05-12 10:41:02] <span className="text-blue-400">INFO</span>: System kernel initialized.</p>
+                          <p className="text-slate-500">[2026-05-12 10:41:05] <span className="text-blue-400">INFO</span>: 14 Edge nodes synchronized.</p>
+                          <p className="text-slate-500">[2026-05-12 10:42:12] <span className="text-emerald-400">SUCCESS</span>: api-gateway build completed in 42.1s.</p>
+                          <p className="text-slate-500">[2026-05-12 10:42:15] <span className="text-indigo-400">DEPLOY</span>: Propagating to {"'london-edge-1'"}.</p>
+                          <p className="text-slate-500">[2026-05-12 10:42:18] <span className="text-indigo-400">DEPLOY</span>: Propagating to {"'new-york-edge-2'"}.</p>
+                          <p className="text-slate-500">[2026-05-12 10:43:01] <span className="text-amber-400">WARN</span>: High latency detected in {"'tokyo-edge'"}.</p>
+                          <p className="text-slate-500">[2026-05-12 10:43:05] <span className="text-blue-400">INFO</span>: Automated rerouting active.</p>
+                          <p className="text-slate-500">[2026-05-12 10:44:22] <span className="text-emerald-400">SUCCESS</span>: docs-site assets optimized (3.2MB {"->"} 1.1MB).</p>
+                          <p className="text-white animate-pulse">_</p>
+                       </div>
+                    </motion.div>
+                  )}
+
+                  {view === 'billing' && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12">
+                       <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Administración de Plan</h4>
+                          <button onClick={() => setView('settings')} className="text-[10px] font-bold text-slate-500 hover:text-white uppercase tracking-widest transition-colors">Volver a Ajustes</button>
+                       </div>
+
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          {[
+                            { name: 'Starter', price: '$0', current: false, features: ['3 Proyectos', '100GB Ancho de Banda', 'Soporte Comunitario'] },
+                            { name: 'Pro', price: '$20/mes', current: true, features: ['Proyectos Ilimitados', '1TB Ancho de Banda', 'Soporte Prioritario', 'Roles de Equipo'] },
+                            { name: 'Enterprise', price: 'Contactar', current: false, features: ['SLA 99.99%', 'Ancho de Banda Ilimitado', 'Gerente de Cuenta Dedicado', 'Auditoría de Seguridad'] },
+                          ].map((plan, i) => (
+                            <div key={i} className={`p-8 rounded-lg border flex flex-col ${plan.current ? 'bg-indigo-600/10 border-indigo-500' : 'bg-slate-900 border-slate-800'}`}>
+                               <div className="flex justify-between items-start mb-6">
+                                  <div>
+                                     <h3 className="text-lg font-bold text-white mb-1">{plan.name}</h3>
+                                     <p className="text-2xl font-mono text-white">{plan.price}</p>
+                                  </div>
+                                  {plan.current && <span className="px-2 py-0.5 bg-emerald-500 text-[10px] font-bold text-white rounded uppercase">Actual</span>}
+                               </div>
+                               <ul className="space-y-3 mb-8 flex-1">
+                                  {plan.features.map((f, j) => (
+                                    <li key={j} className="flex items-center gap-2 text-[11px] text-slate-400">
+                                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> {f}
+                                    </li>
+                                  ))}
+                               </ul>
+                               <button 
+                                 disabled={plan.current}
+                                 className={`w-full py-2.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all ${plan.current ? 'bg-slate-800 text-slate-500 cursor-default' : 'bg-indigo-600 text-white hover:bg-indigo-500'}`}
+                               >
+                                  {plan.current ? 'Plan Actual' : i === 2 ? 'Contactar' : 'Cambiar Plan'}
+                               </button>
+                            </div>
+                          ))}
+                       </div>
+
+                       <section>
+                          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6">Historial de Facturación</h4>
+                          <div className="bg-slate-950 border border-slate-800 rounded overflow-hidden">
+                             <table className="w-full text-left">
+                                <thead className="bg-slate-900 border-b border-slate-800">
+                                   <tr>
+                                      <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Fecha</th>
+                                      <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Concepto</th>
+                                      <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Monto</th>
+                                      <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Estado</th>
+                                      <th className="px-6 py-3"></th>
+                                   </tr>
+                                </thead>
+                                <tbody className="text-[11px]">
+                                   {[
+                                     { date: '1 May, 2026', desc: 'Suscripción Plan Pro - Mayo', amount: '$20.00', status: 'Pagado' },
+                                     { date: '1 Abr, 2026', desc: 'Suscripción Plan Pro - Abril', amount: '$20.00', status: 'Pagado' },
+                                     { date: '1 Mar, 2026', desc: 'Suscripción Plan Pro - Marzo', amount: '$20.00', status: 'Pagado' },
+                                   ].map((inv, i) => (
+                                     <tr key={i} className="border-b border-slate-900 hover:bg-slate-900/50 transition-colors">
+                                        <td className="px-6 py-4 text-slate-400 font-mono">{inv.date}</td>
+                                        <td className="px-6 py-4 text-white font-medium">{inv.desc}</td>
+                                        <td className="px-6 py-4 text-white">{inv.amount}</td>
+                                        <td className="px-6 py-4"><span className="text-emerald-500">● {inv.status}</span></td>
+                                        <td className="px-6 py-4 text-right">
+                                           <button className="text-indigo-400 hover:text-indigo-300 font-bold uppercase tracking-tighter">PDF</button>
+                                        </td>
+                                     </tr>
+                                   ))}
+                                </tbody>
+                             </table>
+                          </div>
+                       </section>
+                    </motion.div>
+                  )}
+
+                  {view === 'api-tokens' && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+                       <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Tokens de API Globales</h4>
+                          <button onClick={() => setView('settings')} className="text-[10px] font-bold text-slate-500 hover:text-white uppercase tracking-widest transition-colors">Volver a Ajustes</button>
+                       </div>
+
+                       <div className="bg-amber-900/10 border border-amber-500/20 p-6 rounded-lg flex gap-4">
+                          <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
+                          <p className="text-[11px] text-slate-400 leading-relaxed">
+                             Los tokens globales tienen permisos de administrador sobre todos los recursos. Manténlos a salvo y nunca los expongas en el código de tu cliente.
+                          </p>
+                       </div>
+
+                       <div className="flex items-center justify-between mb-2">
+                          <h5 className="text-[10px] uppercase font-bold text-slate-500">Tus Tokens</h5>
+                          <button 
+                            onClick={() => {
+                              const newToken = { 
+                                id: Date.now().toString(), 
+                                name: 'Nuevo Token de API', 
+                                key: `cl_live_${Math.random().toString(36).substring(7)}`, 
+                                createdAt: new Date().toISOString().split('T')[0] 
+                              };
+                              setApiTokens([newToken, ...apiTokens]);
+                            }}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white text-[10px] font-bold rounded uppercase tracking-widest hover:bg-indigo-500"
+                          >
+                             <Plus className="w-3.5 h-3.5" /> Generar Token
+                          </button>
+                       </div>
+
+                       <div className="space-y-3">
+                          {apiTokens.length === 0 ? (
+                            <div className="text-center py-20 bg-slate-900/20 border border-dashed border-slate-800 rounded">
+                               <p className="text-xs text-slate-600 uppercase tracking-widest">No hay tokens activos</p>
+                            </div>
+                          ) : apiTokens.map((token) => (
+                            <div key={token.id} className="bg-slate-900 border border-slate-800 p-5 rounded flex items-center justify-between group">
+                               <div className="flex items-center gap-6">
+                                  <div className="w-10 h-10 rounded bg-slate-950 border border-slate-800 flex items-center justify-center">
+                                     <Terminal className="w-5 h-5 text-indigo-400 group-hover:animate-pulse" />
+                                  </div>
+                                  <div>
+                                     <h4 className="text-sm font-bold text-white mb-1">{token.name}</h4>
+                                     <div className="flex items-center gap-3 text-[10px] text-slate-500 font-mono">
+                                        <span className="bg-slate-950 px-2 py-0.5 rounded text-indigo-400 border border-indigo-500/20">{token.key}</span>
+                                        <span>Creado: {token.createdAt}</span>
+                                     </div>
+                                  </div>
+                               </div>
+                               <div className="flex items-center gap-4">
+                                  <button className="text-[10px] font-bold text-slate-500 hover:text-white uppercase tracking-widest">Revelar</button>
+                                  <button 
+                                    onClick={() => setApiTokens(apiTokens.filter(t => t.id !== token.id))}
+                                    className="text-[10px] font-bold text-red-500/60 hover:text-red-500 uppercase tracking-widest"
+                                  >
+                                    Revocar
+                                  </button>
+                               </div>
+                            </div>
+                          ))}
+                       </div>
+                    </motion.div>
+                  )}
+                  {view === 'settings' && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl space-y-12">
+                       <section>
+                          <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3 mb-8">Información de la Cuenta</h4>
+                          <div className="grid grid-cols-2 gap-8">
+                             <div className="space-y-2">
+                                <label className="text-[10px] uppercase font-bold text-slate-500">Nombre de Usuario</label>
+                                <input readOnly type="text" value="rsv_admin" className="w-full bg-slate-900 border border-slate-800 rounded px-4 py-2 text-sm text-slate-400" />
+                             </div>
+                             <div className="space-y-2">
+                                <label className="text-[10px] uppercase font-bold text-slate-500">Email de Contacto</label>
+                                <input readOnly type="text" value="rsv@cloud-lift.app" className="w-full bg-slate-900 border border-slate-800 rounded px-4 py-2 text-sm text-slate-400" />
+                             </div>
+                          </div>
+                       </section>
+
+                       <section>
+                          <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3 mb-8">Planes y Facturación</h4>
+                          <div className="bg-indigo-600/10 border border-indigo-500/20 p-8 rounded-lg flex items-center justify-between">
+                             <div>
+                                <div className="flex items-center gap-3 mb-2">
+                                   <span className="text-xl font-bold text-white">Plan Pro</span>
+                                   <span className="px-2 py-0.5 bg-emerald-500 text-[10px] font-bold text-white rounded uppercase tracking-widest">Activo</span>
+                                </div>
+                                <p className="text-xs text-slate-500">Tu próximo ciclo de facturación comienza el 1 de Junio, 2026.</p>
+                             </div>
+                             <button 
+                               onClick={() => setView('billing')}
+                               className="px-6 py-2 bg-indigo-600 text-white text-xs font-bold rounded uppercase tracking-widest hover:bg-indigo-500 transition-colors"
+                             >
+                               Administrar
+                             </button>
+                          </div>
+                       </section>
+
+                       <section>
+                          <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3 mb-8">Seguridad de la Plataforma</h4>
+                          <div className="space-y-4">
+                             <div className="flex items-center justify-between p-4 bg-slate-900 border border-slate-800 rounded">
+                                <div>
+                                   <p className="text-sm font-bold text-white">Autenticación de Dos Pasos</p>
+                                   <p className="text-[10px] text-slate-500 uppercase">Protege tu cuenta con seguridad adicional</p>
+                                </div>
+                                <div 
+                                  onClick={() => setTwoFactorEnabled(!twoFactorEnabled)}
+                                  className={`w-10 h-5 rounded-full flex items-center px-1 cursor-pointer transition-colors ${twoFactorEnabled ? 'bg-indigo-600 justify-end' : 'bg-slate-700 justify-start'}`}
+                                >
+                                   <motion.div layout className="w-3.5 h-3.5 bg-white rounded-full" />
+                                </div>
+                             </div>
+                             <div className="flex items-center justify-between p-4 bg-slate-900 border border-slate-800 rounded">
+                                <div>
+                                   <p className="text-sm font-bold text-white">Tokens de API Globales</p>
+                                   <p className="text-[10px] text-slate-500 uppercase">Gestiona accesos externos a la infraestructura</p>
+                                </div>
+                                <button 
+                                  onClick={() => setView('api-tokens')}
+                                  className="text-xs font-bold text-indigo-400 hover:text-indigo-300"
+                                >
+                                  Configurar
+                                </button>
+                             </div>
+                          </div>
+                       </section>
+                    </motion.div>
+                  )}
                 </div>
               </div>
             </div>
@@ -524,7 +856,7 @@ export default function CloudLift() {
                   <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-6 border-l-2 border-indigo-500 pl-3">General</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Nombre del Proyecto</label>
+                      <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Nombre del Recurso</label>
                       <input 
                         type="text" 
                         value={selectedService.name}
@@ -533,76 +865,124 @@ export default function CloudLift() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Repositorio GitHub</label>
+                      <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">
+                        {selectedService.type === 'Base de Datos' ? 'Endpoint Interno' : 'Repositorio GitHub'}
+                      </label>
                       <input 
                         type="text" 
-                        value={selectedService.repo}
+                        value={selectedService.type === 'Base de Datos' ? selectedService.url : selectedService.repo}
                         disabled
-                        className="w-full bg-slate-900 border border-slate-800 rounded px-4 py-2.5 text-sm text-slate-400 cursor-not-allowed"
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-4 py-2.5 text-sm text-slate-400 cursor-not-allowed font-mono"
                       />
                     </div>
                   </div>
                 </section>
 
-                {/* Build Settings */}
-                <section>
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Configuración de Build & Despliegue</h3>
-                    <div className="flex items-center gap-2 px-3 py-1 bg-indigo-600/10 border border-indigo-500/20 rounded-full">
-                      <RefreshCw className={`w-3 h-3 text-indigo-400 ${currentSettings.syncWithGithub ? 'animate-spin' : ''}`} />
-                      <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Sincronización Automática</span>
+                {/* Build Settings / DB Settings */}
+                {selectedService.type === 'Base de Datos' ? (
+                  <section>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-emerald-500 pl-3">Instancia & Capacidad</h3>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Directorio Raíz (Root Directory)</label>
-                      <div className="flex gap-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Motor / Versión</label>
                         <input 
                           type="text" 
-                          value={currentSettings.rootDir}
-                          onChange={(e) => updateSetting(selectedService.id, 'rootDir', e.target.value)}
-                          className="flex-1 bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                          value={currentSettings.dbVersion}
+                          onChange={(e) => updateSetting(selectedService.id, 'dbVersion', e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all font-mono"
                         />
-                        <button 
-                          onClick={() => updateSetting(selectedService.id, 'syncWithGithub', !currentSettings.syncWithGithub)}
-                          className={`px-3 rounded border transition-all flex items-center gap-2 ${currentSettings.syncWithGithub ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-white'}`}
-                          title="Sincronizar con GitHub"
-                        >
-                          <Github className="w-4 h-4" />
-                          <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Sync</span>
-                        </button>
                       </div>
-                      <p className="text-[10px] text-slate-600 italic">Sincroniza el directorio raíz con tu estructura de GitHub automáticamente.</p>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Región de Despliegue</label>
+                        <input 
+                          type="text" 
+                          value={currentSettings.dbRegion}
+                          onChange={(e) => updateSetting(selectedService.id, 'dbRegion', e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Almacenamiento (Storage)</label>
+                        <input 
+                          type="text" 
+                          value={currentSettings.dbStorage}
+                          onChange={(e) => updateSetting(selectedService.id, 'dbStorage', e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Memoria RAM</label>
+                        <input 
+                          type="text" 
+                          value={currentSettings.dbRam}
+                          onChange={(e) => updateSetting(selectedService.id, 'dbRam', e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Comando de Build</label>
-                      <input 
-                        type="text" 
-                        value={currentSettings.buildCommand}
-                        onChange={(e) => updateSetting(selectedService.id, 'buildCommand', e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                      />
+                  </section>
+                ) : (
+                  <section>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Configuración de Build & Despliegue</h3>
+                      <div className="flex items-center gap-2 px-3 py-1 bg-indigo-600/10 border border-indigo-500/20 rounded-full">
+                        <RefreshCw className={`w-3 h-3 text-indigo-400 ${currentSettings.syncWithGithub ? 'animate-spin' : ''}`} />
+                        <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Sincronización Automática</span>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Directorio de Salida (Output Directory)</label>
-                      <input 
-                        type="text" 
-                        value={currentSettings.outputDir}
-                        onChange={(e) => updateSetting(selectedService.id, 'outputDir', e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all font-mono"
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Directorio Raíz (Root Directory)</label>
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            value={currentSettings.rootDir}
+                            onChange={(e) => updateSetting(selectedService.id, 'rootDir', e.target.value)}
+                            className="flex-1 bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                          />
+                          <button 
+                            onClick={() => updateSetting(selectedService.id, 'syncWithGithub', !currentSettings.syncWithGithub)}
+                            className={`px-3 rounded border transition-all flex items-center gap-2 ${currentSettings.syncWithGithub ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-white'}`}
+                            title="Sincronizar con GitHub"
+                          >
+                            <Github className="w-4 h-4" />
+                            <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Sync</span>
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-600 italic">Sincroniza el directorio raíz con tu estructura de GitHub automáticamente.</p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Comando de Build</label>
+                        <input 
+                          type="text" 
+                          value={currentSettings.buildCommand}
+                          onChange={(e) => updateSetting(selectedService.id, 'buildCommand', e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Directorio de Salida (Output Directory)</label>
+                        <input 
+                          type="text" 
+                          value={currentSettings.outputDir}
+                          onChange={(e) => updateSetting(selectedService.id, 'outputDir', e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all font-mono"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Comando de Instalación</label>
+                        <input 
+                          type="text" 
+                          value={currentSettings.installCommand}
+                          onChange={(e) => updateSetting(selectedService.id, 'installCommand', e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Comando de Instalación</label>
-                      <input 
-                        type="text" 
-                        value={currentSettings.installCommand}
-                        onChange={(e) => updateSetting(selectedService.id, 'installCommand', e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                      />
-                    </div>
-                  </div>
-                </section>
+                  </section>
+                )}
 
                 {/* Environment Variables */}
                 <section>
@@ -640,8 +1020,8 @@ export default function CloudLift() {
                   <h3 className="text-xs font-bold text-red-500 uppercase tracking-widest mb-6">Zona de Peligro</h3>
                   <div className="p-6 border border-red-500/20 bg-red-500/5 rounded-lg flex items-center justify-between">
                     <div>
-                      <h4 className="text-sm font-bold text-white mb-1">Eliminar este proyecto</h4>
-                      <p className="text-xs text-slate-500">Una vez que elimines un proyecto, no hay vuelta atrás. Por favor, asegúrate.</p>
+                      <h4 className="text-sm font-bold text-white mb-1">Eliminar este recurso</h4>
+                      <p className="text-xs text-slate-500">Una vez que elimines un {selectedService.type.toLowerCase()}, no hay vuelta atrás. Por favor, asegúrate.</p>
                     </div>
                     <button 
                       onClick={() => {
@@ -650,7 +1030,7 @@ export default function CloudLift() {
                       }}
                       className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded uppercase tracking-widest transition-colors"
                     >
-                      Eliminar Proyecto
+                      Eliminar {selectedService.type === 'Base de Datos' ? 'Base de Datos' : 'Servicio'}
                     </button>
                   </div>
                 </section>
