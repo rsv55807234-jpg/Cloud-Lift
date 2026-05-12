@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 
 // --- Types ---
-type View = 'landing' | 'dashboard' | 'deploy' | 'service-settings' | 'services' | 'databases' | 'logs' | 'settings' | 'billing' | 'api-tokens';
+type View = 'landing' | 'dashboard' | 'deploy' | 'service-settings' | 'services' | 'workers' | 'r2' | 'databases' | 'logs' | 'settings' | 'billing' | 'api-tokens' | 'domains';
 type DeployStep = 'select' | 'configure' | 'deploying';
 type ServiceStatus = 'live' | 'building' | 'failed' | 'idle';
 
@@ -57,6 +57,11 @@ interface ServiceSettingsData {
   outputDir?: string;
   installCommand?: string;
   syncWithGithub?: boolean;
+  // Cloudflare-like features
+  customDomain?: string;
+  securityLevel?: 'essentially_off' | 'low' | 'medium' | 'high' | 'under_attack';
+  sslMode?: 'off' | 'flexible' | 'full' | 'strict';
+  cacheLevel?: 'bypass' | 'standard' | 'aggressive';
   // Database Settings
   dbVersion?: string;
   dbStorage?: string;
@@ -65,9 +70,38 @@ interface ServiceSettingsData {
 }
 
 const MOCK_SETTINGS: Record<string, ServiceSettingsData> = {
-  '1': { rootDir: './', buildCommand: 'npm run build', outputDir: '.next', installCommand: 'npm install', syncWithGithub: true },
-  '2': { rootDir: './docs', buildCommand: 'npm run build', outputDir: 'dist', installCommand: 'npm install', syncWithGithub: false },
-  '3': { rootDir: './', buildCommand: 'npm run build', outputDir: 'dist', installCommand: 'npm install', syncWithGithub: true },
+  '1': { 
+    rootDir: './', 
+    buildCommand: 'npm run build', 
+    outputDir: '.next', 
+    installCommand: 'npm install', 
+    syncWithGithub: true,
+    customDomain: 'gateway.cloud-lift.app',
+    securityLevel: 'medium',
+    sslMode: 'full',
+    cacheLevel: 'standard'
+  },
+  '2': { 
+    rootDir: './docs', 
+    buildCommand: 'npm run build', 
+    outputDir: 'dist', 
+    installCommand: 'npm install', 
+    syncWithGithub: false,
+    customDomain: 'docs.cloud-lift.app',
+    securityLevel: 'low',
+    sslMode: 'flexible',
+    cacheLevel: 'aggressive'
+  },
+  '3': { 
+    rootDir: './', 
+    buildCommand: 'npm run build', 
+    outputDir: 'dist', 
+    installCommand: 'npm install', 
+    syncWithGithub: true,
+    securityLevel: 'high',
+    sslMode: 'strict',
+    cacheLevel: 'bypass'
+  },
   '4': { dbVersion: 'PostgreSQL 15.4', dbStorage: '20GB NVMe', dbRam: '4GB DDR4', dbRegion: 'us-east-1' },
 };
 
@@ -83,6 +117,21 @@ const MOCK_TOKENS: ApiToken[] = [
   { id: '2', name: 'CLI Local', key: 'cl_live_2a1...p33', createdAt: '2026-05-01' },
 ];
 
+const StatusBadge = ({ status }: { status: ServiceStatus }) => {
+  const colors = {
+    live: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+    building: 'bg-blue-500/10 text-blue-500 border-blue-500/20 animate-pulse',
+    failed: 'bg-red-500/10 text-red-500 border-red-500/20',
+    idle: 'bg-slate-500/10 text-slate-500 border-slate-500/20',
+  };
+
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${colors[status]}`}>
+      {status.toUpperCase()}
+    </span>
+  );
+};
+
 export default function CloudLift() {
   const [view, setView] = useState<View>('landing');
   const [services, setServices] = useState<Service[]>(MOCK_SERVICES);
@@ -94,6 +143,7 @@ export default function CloudLift() {
   // New States
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
   const [apiTokens, setApiTokens] = useState<ApiToken[]>(MOCK_TOKENS);
+  const [isGithubConnected, setIsGithubConnected] = useState(true);
   
   // Deploy State
   const [deployStep, setDeployStep] = useState<DeployStep>('select');
@@ -124,21 +174,6 @@ export default function CloudLift() {
 
   const selectedService = services.find(s => s.id === selectedServiceId);
   const currentSettings = selectedServiceId ? allSettings[selectedServiceId] : null;
-
-  const StatusBadge = ({ status }: { status: ServiceStatus }) => {
-    const colors = {
-      live: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-      building: 'bg-blue-500/10 text-blue-500 border-blue-500/20 animate-pulse',
-      failed: 'bg-red-500/10 text-red-500 border-red-500/20',
-      idle: 'bg-slate-500/10 text-slate-500 border-slate-500/20',
-    };
-
-    return (
-      <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${colors[status]}`}>
-        {status.toUpperCase()}
-      </span>
-    );
-  };
 
   return (
     <main className="min-h-screen bg-[#020617] text-slate-300 selection:bg-indigo-500/30 font-sans">
@@ -225,7 +260,7 @@ export default function CloudLift() {
           </motion.div>
         )}
 
-        {['dashboard', 'services', 'databases', 'logs', 'settings', 'billing', 'api-tokens'].includes(view) && (
+        {['dashboard', 'services', 'databases', 'logs', 'settings', 'billing', 'api-tokens', 'workers', 'r2', 'domains', 'service-settings', 'deploy'].includes(view) && (
           <motion.div
             key="dashboard-shell"
             initial={{ opacity: 0 }}
@@ -268,32 +303,38 @@ export default function CloudLift() {
                   </div>
                   {[
                     { icon: Layout, label: 'Panel Control', view: 'dashboard' as View },
-                    { icon: Server, label: 'Servicios', view: 'services' as View },
+                    { icon: Server, label: 'Servicios', view: 'services' as View, subViews: ['service-settings', 'deploy'] },
+                    { icon: Zap, label: 'Workers (Edge)', view: 'workers' as View },
                     { icon: Database, label: 'Bases de Datos', view: 'databases' as View },
-                  ].map((item, i) => (
-                    <button 
-                      key={i} 
-                      onClick={() => setView(item.view)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all ${view === item.view ? 'bg-slate-800 text-white border border-slate-700' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
-                      title={!isSidebarExpanded ? item.label : undefined}
-                    >
-                      <item.icon className={`w-4 h-4 shrink-0 ${view === item.view ? 'text-indigo-400' : ''}`} />
-                      {isSidebarExpanded && (
-                        <motion.span
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="whitespace-nowrap"
-                        >
-                          {item.label}
-                        </motion.span>
-                      )}
-                    </button>
-                  ))}
+                    { icon: Cloud, label: 'R2 Almacenamiento', view: 'r2' as View },
+                  ].map((item, i) => {
+                    const isActive = view === item.view || (item.subViews?.includes(view));
+                    return (
+                      <button 
+                        key={i} 
+                        onClick={() => setView(item.view)}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all ${isActive ? 'bg-slate-800 text-white border border-slate-700' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
+                        title={!isSidebarExpanded ? item.label : undefined}
+                      >
+                        <item.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-400' : ''}`} />
+                        {isSidebarExpanded && (
+                          <motion.span
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="whitespace-nowrap"
+                          >
+                            {item.label}
+                          </motion.span>
+                        )}
+                      </button>
+                    );
+                  })}
                   
                   <div className={`text-[10px] uppercase tracking-widest text-slate-500 font-bold px-2 py-3 mt-4 truncate ${!isSidebarExpanded ? 'text-center' : ''}`}>
                     {isSidebarExpanded ? 'Observabilidad' : 'Obs'}
                   </div>
                   {[
+                    { icon: Globe, label: 'Dominios', view: 'domains' as View },
                     { icon: Activity, label: 'Logs', view: 'logs' as View },
                     { icon: Settings, label: 'Ajustes', view: 'settings' as View }
                   ].map((item, i) => (
@@ -347,16 +388,21 @@ export default function CloudLift() {
                 <header className="h-16 border-b border-slate-800 flex items-center justify-between px-8 bg-slate-900/20 shrink-0">
                   <div className="flex items-center gap-4 text-sm">
                     <span className="text-slate-500">
-                      {['dashboard', 'services', 'databases'].includes(view) ? 'Infraestructura' : 'Observabilidad'}
+                      {['dashboard', 'services', 'databases', 'workers', 'r2'].includes(view) ? 'Infraestructura' : 'Observabilidad'}
                     </span>
                     <span className="text-slate-700">/</span>
                     <span className="text-white font-medium lowercase first-letter:uppercase tracking-tight">
                       {view === 'dashboard' ? 'Resumen General' : 
                        view === 'services' ? 'Gestión de Servicios' :
+                       view === 'workers' ? 'Workers & Functions' :
                        view === 'databases' ? 'Instancias de Base de Datos' :
+                       view === 'r2' ? 'Almacenamiento R2' :
+                       view === 'domains' ? 'Gestión de Dominios' :
                        view === 'logs' ? 'Explorador de Logs' :
                        view === 'settings' ? 'Ajustes de la Plataforma' : 
                        view === 'billing' ? 'Facturación y Planes' :
+                       view === 'service-settings' ? 'Ajustes del Servicio' :
+                       view === 'deploy' ? 'Nuevo Despliegue' :
                        view === 'api-tokens' ? 'Configuración de API' : view}
                     </span>
                   </div>
@@ -588,6 +634,102 @@ export default function CloudLift() {
                     </motion.div>
                   )}
 
+                  {view === 'workers' && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                       <div className="flex items-center justify-between mb-6">
+                        <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Edge Workers Activos</h4>
+                        <button 
+                          onClick={() => setView('deploy')}
+                          className="px-4 py-1.5 bg-indigo-600 text-white text-[10px] font-bold rounded uppercase tracking-widest hover:bg-indigo-500 transition-colors"
+                        >
+                          Crear Worker
+                        </button>
+                      </div>
+                      <div className="bg-slate-900 border border-slate-800 p-6 rounded-lg flex items-center justify-between group">
+                         <div className="flex items-center gap-6">
+                            <div className="w-12 h-12 bg-indigo-500/10 border border-indigo-500/20 rounded flex items-center justify-center">
+                               <Zap className="w-6 h-6 text-indigo-400" />
+                            </div>
+                            <div>
+                               <div className="flex items-center gap-3 mb-1">
+                                 <h3 className="font-bold text-white">auth-middleware-edge</h3>
+                                 <StatusBadge status="live" />
+                               </div>
+                               <div className="flex items-center gap-4 text-[10px] text-slate-500 font-mono uppercase tracking-widest">
+                                 <span>12.5ms avg latency</span>
+                                 <span className="text-slate-700">|</span>
+                                 <span>244 rps</span>
+                               </div>
+                            </div>
+                         </div>
+                         <button className="text-[10px] font-bold text-indigo-400 hover:text-white uppercase tracking-widest">Ver Script</button>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {view === 'r2' && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                       <div className="flex items-center justify-between mb-6">
+                        <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Buckets de Almacenamiento R2</h4>
+                        <button className="px-4 py-1.5 bg-blue-600 text-white text-[10px] font-bold rounded uppercase tracking-widest hover:bg-blue-500 transition-colors">
+                          Crear Bucket
+                        </button>
+                      </div>
+                      <div className="bg-slate-900 border border-slate-800 p-6 rounded-lg flex items-center justify-between group">
+                         <div className="flex items-center gap-6">
+                            <div className="w-12 h-12 bg-blue-500/10 border border-blue-500/20 rounded flex items-center justify-center">
+                               <Cloud className="w-6 h-6 text-blue-400" />
+                            </div>
+                            <div>
+                               <div className="flex items-center gap-3 mb-1">
+                                 <h3 className="font-bold text-white">user-assets-prod</h3>
+                                 <StatusBadge status="live" />
+                               </div>
+                               <div className="flex items-center gap-4 text-[10px] text-slate-500 font-mono uppercase tracking-widest">
+                                 <span>12.4 GB utilizados</span>
+                                 <span className="text-slate-700">|</span>
+                                 <span>Región Global</span>
+                               </div>
+                            </div>
+                         </div>
+                         <button className="text-[10px] font-bold text-blue-400 hover:text-white uppercase tracking-widest">Explorar</button>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {view === 'domains' && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                       <div className="flex items-center justify-between mb-6">
+                        <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Dominios Conectados</h4>
+                        <button className="px-4 py-1.5 bg-white text-black text-[10px] font-bold rounded uppercase tracking-widest hover:bg-slate-200 transition-colors">
+                          Añadir Dominio
+                        </button>
+                      </div>
+                      <div className="bg-slate-900 border border-slate-800 p-6 rounded-lg flex items-center justify-between group">
+                         <div className="flex items-center gap-6">
+                            <div className="w-12 h-12 bg-slate-950 border border-slate-800 rounded flex items-center justify-center">
+                               <Globe className="w-6 h-6 text-slate-400" />
+                            </div>
+                            <div>
+                               <div className="flex items-center gap-3 mb-1">
+                                 <h3 className="font-bold text-white tracking-tight">cloud-lift.app</h3>
+                                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-bold uppercase tracking-tighter">Activo</span>
+                               </div>
+                               <div className="flex items-center gap-4 text-[10px] text-slate-500 font-mono uppercase tracking-widest">
+                                 <span>DNS Administrado por CL</span>
+                                 <span className="text-slate-700">|</span>
+                                 <span>SSL Full (Strict)</span>
+                               </div>
+                            </div>
+                         </div>
+                         <div className="flex gap-4">
+                            <button className="text-[10px] font-bold text-slate-500 hover:text-white uppercase tracking-widest">DNS</button>
+                            <button className="text-[10px] font-bold text-slate-500 hover:text-white uppercase tracking-widest">SSL</button>
+                         </div>
+                      </div>
+                    </motion.div>
+                  )}
+
                   {view === 'logs' && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-[calc(100vh-12rem)] flex flex-col gap-4">
                        <div className="flex items-center justify-between">
@@ -749,9 +891,7 @@ export default function CloudLift() {
                             </div>
                           ))}
                        </div>
-                    </motion.div>
-                  )}
-                  {view === 'settings' && (
+                                 {view === 'settings' && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl space-y-12">
                        <section>
                           <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3 mb-8">Información de la Cuenta</h4>
@@ -778,10 +918,10 @@ export default function CloudLift() {
                                 <p className="text-xs text-slate-500">Tu próximo ciclo de facturación comienza el 1 de Junio, 2026.</p>
                              </div>
                              <button 
-                               onClick={() => setView('billing')}
-                               className="px-6 py-2 bg-indigo-600 text-white text-xs font-bold rounded uppercase tracking-widest hover:bg-indigo-500 transition-colors"
+                                onClick={() => setView('billing')}
+                                className="px-6 py-2 bg-indigo-600 text-white text-xs font-bold rounded uppercase tracking-widest hover:bg-indigo-500 transition-colors"
                              >
-                               Administrar
+                                Administrar
                              </button>
                           </div>
                        </section>
@@ -810,12 +950,104 @@ export default function CloudLift() {
                                   onClick={() => setView('api-tokens')}
                                   className="text-xs font-bold text-indigo-400 hover:text-indigo-300"
                                 >
-                                  Configurar
+                                   Configurar
                                 </button>
                              </div>
                           </div>
                        </section>
                     </motion.div>
+                  )}
+
+                  {view === 'service-settings' && selectedService && currentSettings && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12">
+                      <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center gap-4">
+                          <button onClick={() => setView('services')} className="p-2 hover:bg-slate-800 rounded transition-colors">
+                            <ChevronRight className="w-4 h-4 text-slate-400 rotate-180" />
+                          </button>
+                          <div>
+                            <h2 className="text-xl font-bold text-white uppercase tracking-widest">{selectedService.name}</h2>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Ajustes del Proyecto</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => setView('services')}
+                          className="px-6 py-2 bg-indigo-600 text-white text-xs font-semibold rounded hover:bg-indigo-500 transition-colors uppercase tracking-widest"
+                        >
+                          Guardar y Volver
+                        </button>
+                      </div>
+
+                      <section>
+                        <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-6 border-l-2 border-indigo-500 pl-3">General</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Nombre del Recurso</label>
+                            <input readOnly type="text" value={selectedService.name} className="w-full bg-slate-900 border border-slate-800 rounded px-4 py-2.5 text-sm text-slate-400 cursor-not-allowed" />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">{selectedService.type === 'Base de Datos' ? 'Endpoint Interno' : 'Repositorio GitHub'}</label>
+                            <input readOnly type="text" value={selectedService.type === 'Base de Datos' ? selectedService.url : selectedService.repo} className="w-full bg-slate-900 border border-slate-800 rounded px-4 py-2.5 text-sm text-slate-400 cursor-not-allowed font-mono" />
+                          </div>
+                        </div>
+                      </section>
+
+                      {selectedService.type === 'Base de Datos' ? (
+                        <section>
+                          <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-6 border-l-2 border-emerald-500 pl-3">Instancia & Capacidad</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                              <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Motor / Versión</label>
+                              <input type="text" value={currentSettings.dbVersion || ''} onChange={(e) => updateSetting(selectedService.id, 'dbVersion', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:ring-1 focus:ring-emerald-500/50 outline-none font-mono" />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Región</label>
+                              <input type="text" value={currentSettings.dbRegion || ''} onChange={(e) => updateSetting(selectedService.id, 'dbRegion', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:ring-1 focus:ring-emerald-500/50 outline-none" />
+                            </div>
+                          </div>
+                        </section>
+                      ) : (
+                        <section>
+                          <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-6 border-l-2 border-indigo-500 pl-3">Build & Despliegue</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                              <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Directorio Raíz</label>
+                              <input type="text" value={currentSettings.rootDir || ''} onChange={(e) => updateSetting(selectedService.id, 'rootDir', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:ring-1 focus:ring-indigo-500/50 outline-none" />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Comando Build</label>
+                              <input type="text" value={currentSettings.buildCommand || ''} onChange={(e) => updateSetting(selectedService.id, 'buildCommand', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:ring-1 focus:ring-indigo-500/50 outline-none" />
+                            </div>
+                          </div>
+                        </section>
+                      )}
+                      
+                      <section className="pt-8 border-t border-slate-800">
+                        <h3 className="text-xs font-bold text-red-500 uppercase tracking-widest mb-6">Zona Peligrosa</h3>
+                        <div className="p-6 border border-red-500/20 bg-red-500/5 rounded-lg flex items-center justify-between">
+                           <div>
+                              <h4 className="text-sm font-bold text-white mb-1">Eliminar Recurso</h4>
+                              <p className="text-xs text-slate-500">Esta acción no se puede deshacer.</p>
+                           </div>
+                           <button onClick={() => { deleteService(selectedService.id); setView('services'); }} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded uppercase tracking-widest">Eliminar</button>
+                        </div>
+                      </section>
+                    </motion.div>
+                  )}
+
+                  {view === 'deploy' && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+                       <div className="flex items-center justify-between mb-8">
+                          <h2 className="text-xl font-bold text-white uppercase tracking-widest">Nuevo Despliegue</h2>
+                          <button onClick={() => setView('dashboard')} className="text-[10px] font-bold text-slate-500 hover:text-white uppercase">Cancelar</button>
+                       </div>
+                       <div className="max-w-2xl mx-auto text-center py-20 border border-dashed border-slate-800 rounded-lg">
+                          <Rocket className="w-12 h-12 text-slate-700 mx-auto mb-4" />
+                          <p className="text-slate-500 uppercase tracking-widest text-[10px] font-bold">Iniciando orquestador...</p>
+                          <button onClick={() => setView('services')} className="mt-8 px-6 py-2 bg-indigo-600 text-white text-xs font-bold rounded uppercase tracking-widest">Volver</button>
+                       </div>
+                    </motion.div>
+                  )}           </motion.div>
                   )}
                 </div>
               </div>
@@ -831,498 +1063,6 @@ export default function CloudLift() {
                 CL-Core-v2.4
               </div>
             </footer>
-          </motion.div>
-        )}
-
-        {view === 'service-settings' && selectedService && currentSettings && (
-          <motion.div
-            key="service-settings"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="min-h-screen bg-[#020617] flex flex-col"
-          >
-            <nav className="flex items-center justify-between px-8 py-4 border-b border-slate-800 bg-slate-950">
-              <div className="flex items-center gap-4">
-                <button onClick={() => setView('dashboard')} className="p-2 hover:bg-slate-800 rounded transition-colors">
-                  <ChevronRight className="w-4 h-4 text-slate-400 rotate-180" />
-                </button>
-                <div className="flex flex-col">
-                  <h2 className="text-sm font-bold text-white uppercase tracking-widest">{selectedService.name}</h2>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Ajustes del Proyecto</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => setView('dashboard')}
-                  className="px-4 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded hover:bg-indigo-500 transition-colors uppercase tracking-widest"
-                >
-                  Guardar Cambios
-                </button>
-              </div>
-            </nav>
-
-            <div className="flex-1 overflow-y-auto">
-              <div className="max-w-4xl mx-auto p-8 space-y-12">
-                {/* General Settings */}
-                <section>
-                  <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-6 border-l-2 border-indigo-500 pl-3">General</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Nombre del Recurso</label>
-                      <input 
-                        type="text" 
-                        value={selectedService.name}
-                        disabled
-                        className="w-full bg-slate-900 border border-slate-800 rounded px-4 py-2.5 text-sm text-slate-400 cursor-not-allowed"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">
-                        {selectedService.type === 'Base de Datos' ? 'Endpoint Interno' : 'Repositorio GitHub'}
-                      </label>
-                      <input 
-                        type="text" 
-                        value={selectedService.type === 'Base de Datos' ? selectedService.url : selectedService.repo}
-                        disabled
-                        className="w-full bg-slate-900 border border-slate-800 rounded px-4 py-2.5 text-sm text-slate-400 cursor-not-allowed font-mono"
-                      />
-                    </div>
-                  </div>
-                </section>
-
-                {/* Build Settings / DB Settings */}
-                {selectedService.type === 'Base de Datos' ? (
-                  <section>
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-emerald-500 pl-3">Instancia & Capacidad</h3>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Motor / Versión</label>
-                        <input 
-                          type="text" 
-                          value={currentSettings.dbVersion}
-                          onChange={(e) => updateSetting(selectedService.id, 'dbVersion', e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all font-mono"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Región de Despliegue</label>
-                        <input 
-                          type="text" 
-                          value={currentSettings.dbRegion}
-                          onChange={(e) => updateSetting(selectedService.id, 'dbRegion', e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Almacenamiento (Storage)</label>
-                        <input 
-                          type="text" 
-                          value={currentSettings.dbStorage}
-                          onChange={(e) => updateSetting(selectedService.id, 'dbStorage', e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Memoria RAM</label>
-                        <input 
-                          type="text" 
-                          value={currentSettings.dbRam}
-                          onChange={(e) => updateSetting(selectedService.id, 'dbRam', e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all"
-                        />
-                      </div>
-                    </div>
-                  </section>
-                ) : (
-                  <section>
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Configuración de Build & Despliegue</h3>
-                      <div className="flex items-center gap-2 px-3 py-1 bg-indigo-600/10 border border-indigo-500/20 rounded-full">
-                        <RefreshCw className={`w-3 h-3 text-indigo-400 ${currentSettings.syncWithGithub ? 'animate-spin' : ''}`} />
-                        <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Sincronización Automática</span>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Directorio Raíz (Root Directory)</label>
-                        <div className="flex gap-2">
-                          <input 
-                            type="text" 
-                            value={currentSettings.rootDir}
-                            onChange={(e) => updateSetting(selectedService.id, 'rootDir', e.target.value)}
-                            className="flex-1 bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                          />
-                          <button 
-                            onClick={() => updateSetting(selectedService.id, 'syncWithGithub', !currentSettings.syncWithGithub)}
-                            className={`px-3 rounded border transition-all flex items-center gap-2 ${currentSettings.syncWithGithub ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-white'}`}
-                            title="Sincronizar con GitHub"
-                          >
-                            <Github className="w-4 h-4" />
-                            <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Sync</span>
-                          </button>
-                        </div>
-                        <p className="text-[10px] text-slate-600 italic">Sincroniza el directorio raíz con tu estructura de GitHub automáticamente.</p>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Comando de Build</label>
-                        <input 
-                          type="text" 
-                          value={currentSettings.buildCommand}
-                          onChange={(e) => updateSetting(selectedService.id, 'buildCommand', e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Directorio de Salida (Output Directory)</label>
-                        <input 
-                          type="text" 
-                          value={currentSettings.outputDir}
-                          onChange={(e) => updateSetting(selectedService.id, 'outputDir', e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all font-mono"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Comando de Instalación</label>
-                        <input 
-                          type="text" 
-                          value={currentSettings.installCommand}
-                          onChange={(e) => updateSetting(selectedService.id, 'installCommand', e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                        />
-                      </div>
-                    </div>
-                  </section>
-                )}
-
-                {/* Environment Variables */}
-                <section>
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3">Variables de Entorno</h3>
-                    <button className="flex items-center justify-center w-6 h-6 rounded-sm bg-slate-800 text-slate-400 hover:text-white transition-colors">
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-12 gap-2">
-                      <div className="col-span-5 px-4 py-2 text-[10px] uppercase text-slate-500 font-bold tracking-widest bg-slate-900 border border-slate-800 rounded">Key</div>
-                      <div className="col-span-6 px-4 py-2 text-[10px] uppercase text-slate-500 font-bold tracking-widest bg-slate-900 border border-slate-800 rounded">Value</div>
-                      <div className="col-span-1"></div>
-                    </div>
-                    <div className="grid grid-cols-12 gap-2">
-                      <input type="text" value="API_KEY" readOnly className="col-span-5 bg-slate-950 border border-slate-800 rounded px-4 py-2 text-xs text-slate-400" />
-                      <input type="password" value="••••••••••••" readOnly className="col-span-6 bg-slate-950 border border-slate-800 rounded px-4 py-2 text-xs text-slate-400" />
-                      <button className="col-span-1 flex items-center justify-center p-2 text-slate-600 hover:text-red-400 transition-colors">
-                        <AlertCircle className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-12 gap-2">
-                      <input type="text" value="NODE_ENV" readOnly className="col-span-5 bg-slate-950 border border-slate-800 rounded px-4 py-2 text-xs text-slate-400" />
-                      <input type="text" value="production" readOnly className="col-span-6 bg-slate-950 border border-slate-800 rounded px-4 py-2 text-xs text-slate-400" />
-                      <button className="col-span-1 flex items-center justify-center p-2 text-slate-600 hover:text-red-400 transition-colors">
-                        <AlertCircle className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </section>
-
-                {/* Danger Zone */}
-                <section className="pt-8 border-t border-slate-800">
-                  <h3 className="text-xs font-bold text-red-500 uppercase tracking-widest mb-6">Zona de Peligro</h3>
-                  <div className="p-6 border border-red-500/20 bg-red-500/5 rounded-lg flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-bold text-white mb-1">Eliminar este recurso</h4>
-                      <p className="text-xs text-slate-500">Una vez que elimines un {selectedService.type.toLowerCase()}, no hay vuelta atrás. Por favor, asegúrate.</p>
-                    </div>
-                    <button 
-                      onClick={() => {
-                        deleteService(selectedService.id);
-                        setView('dashboard');
-                      }}
-                      className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded uppercase tracking-widest transition-colors"
-                    >
-                      Eliminar {selectedService.type === 'Base de Datos' ? 'Base de Datos' : 'Servicio'}
-                    </button>
-                  </div>
-                </section>
-              </div>
-            </div>
-          </motion.div>
-        )}
-        {view === 'deploy' && (
-          <motion.div
-            key="deploy"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="min-h-screen bg-[#020617] flex flex-col"
-          >
-            <nav className="flex items-center justify-between px-8 py-4 border-b border-slate-800 bg-slate-950">
-              <div className="flex items-center gap-4">
-                <button 
-                  onClick={() => {
-                    if (deployStep === 'configure') setDeployStep('select');
-                    else setView('dashboard');
-                  }} 
-                  className="p-2 hover:bg-slate-800 rounded transition-colors"
-                >
-                  <ChevronRight className="w-4 h-4 text-slate-400 rotate-180" />
-                </button>
-                <h2 className="text-sm font-bold text-white uppercase tracking-widest">
-                  {deployStep === 'select' ? 'Seleccionar Repositorio' : 
-                   deployStep === 'configure' ? 'Configurar Proyecto' : 'Desplegando...'}
-                </h2>
-              </div>
-              <button 
-                onClick={() => setView('dashboard')}
-                className="text-slate-500 hover:text-white text-[10px] uppercase tracking-widest font-bold"
-              >
-                Cancelar
-              </button>
-            </nav>
-
-            <div className="flex-1 overflow-y-auto bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-900/10 via-transparent to-transparent flex flex-col items-center py-12 px-8">
-              {deployStep === 'select' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl w-full">
-                  <div className="text-center mb-12">
-                    <div className="bg-indigo-600 w-12 h-12 rounded-sm flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_-5px_rgba(79,70,229,0.5)]">
-                      <Github className="w-6 h-6 text-white" />
-                    </div>
-                    <h1 className="text-4xl font-bold text-white mb-4 tracking-tighter">Conectar repositorio</h1>
-                    <p className="text-slate-500 uppercase tracking-widest text-[10px] font-bold">Importa tus proyectos directamente desde GitHub</p>
-                  </div>
-
-                  <div className="bg-slate-900/50 border border-slate-800 rounded-lg overflow-hidden mb-8">
-                    <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
-                      <div className="flex items-center gap-3">
-                        <div className="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-[10px] font-bold text-white">RA</div>
-                        <span className="text-xs font-bold text-white">rsv_admin / repos</span>
-                      </div>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-                        <input type="text" placeholder="Buscar repositorio..." className="bg-slate-950 border border-slate-800 rounded pl-9 pr-4 py-1.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-indigo-500 w-48" />
-                      </div>
-                    </div>
-                    <div className="divide-y divide-slate-800">
-                      {[
-                        { name: 'awesome-web-app', updated: 'hace 2h', language: 'TypeScript' },
-                        { name: 'nextjs-dashboard', updated: 'hace 1d', language: 'JavaScript' },
-                        { name: 'python-api-v2', updated: 'hace 3d', language: 'Python' },
-                        { name: 'portfolio-v3', updated: 'hace 1 semana', language: 'Vue' },
-                      ].map((repo, i) => (
-                        <div 
-                          key={i} 
-                          onClick={() => {
-                            setSelectedRepo(repo);
-                            setDeploySettings(prev => ({ ...prev, name: repo.name }));
-                            setDeployStep('configure');
-                          }}
-                          className="group p-5 flex items-center justify-between hover:bg-indigo-600/5 transition-all cursor-pointer"
-                        >
-                          <div className="flex items-center gap-6">
-                            <div className="w-8 h-8 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center">
-                              <Github className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors" />
-                            </div>
-                            <div>
-                              <h3 className="font-bold text-white uppercase tracking-tight text-sm mb-1">{repo.name}</h3>
-                              <div className="flex items-center gap-3 text-[10px] text-slate-600 font-mono">
-                                <span>{repo.updated}</span>
-                                <span className="w-1 h-1 rounded-full bg-slate-800" />
-                                <span>{repo.language}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <button className="bg-indigo-600 text-white px-4 py-1.5 rounded-sm text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all">
-                            Importar
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {deployStep === 'configure' && selectedRepo && (
-                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl w-full">
-                  <div className="grid grid-cols-12 gap-8">
-                    <div className="col-span-12 lg:col-span-8 space-y-8">
-                      <section className="bg-slate-900 border border-slate-800 p-8 rounded-lg">
-                        <div className="flex items-center gap-4 mb-8">
-                           <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center">
-                              <Settings className="w-5 h-5 text-indigo-400" />
-                           </div>
-                           <div>
-                              <h3 className="text-xl font-bold text-white tracking-tight">Ajustes del Proyecto</h3>
-                              <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Configura tu despliegue</p>
-                           </div>
-                        </div>
-
-                        <div className="space-y-6">
-                          <div className="grid grid-cols-2 gap-6">
-                             <div className="space-y-2">
-                                <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Nombre del Proyecto</label>
-                                <input 
-                                  type="text" 
-                                  value={deploySettings.name}
-                                  onChange={(e) => setDeploySettings({...deploySettings, name: e.target.value})}
-                                  className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm font-medium focus:ring-1 focus:ring-indigo-500 outline-none" 
-                                />
-                             </div>
-                             <div className="space-y-2">
-                                <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Framework Preset</label>
-                                <select 
-                                  value={deploySettings.framework}
-                                  onChange={(e) => setDeploySettings({...deploySettings, framework: e.target.value})}
-                                  className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm font-medium focus:ring-1 focus:ring-indigo-500 outline-none appearance-none"
-                                >
-                                   <option value="nextjs">Next.js</option>
-                                   <option value="vite">Vite / React</option>
-                                   <option value="nuxt">Nuxt.js</option>
-                                   <option value="svelte">SvelteKit</option>
-                                   <option value="other">Otros (Estático)</option>
-                                </select>
-                             </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-6">
-                             <div className="space-y-2">
-                                <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Rama de Git (Branch)</label>
-                                <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded px-4 py-2.5">
-                                   <Zap className="w-3.5 h-3.5 text-slate-500" />
-                                   <input 
-                                     type="text" 
-                                     value={deploySettings.branch}
-                                     onChange={(e) => setDeploySettings({...deploySettings, branch: e.target.value})}
-                                     className="bg-transparent text-sm font-mono focus:outline-none w-full" 
-                                   />
-                                </div>
-                             </div>
-                             <div className="space-y-2">
-                                <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Directorio Raíz</label>
-                                <input 
-                                  type="text" 
-                                  value={deploySettings.rootDir}
-                                  onChange={(e) => setDeploySettings({...deploySettings, rootDir: e.target.value})}
-                                  className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-sm font-mono focus:ring-1 focus:ring-indigo-500 outline-none" 
-                                />
-                             </div>
-                          </div>
-                        </div>
-                      </section>
-
-                      <section className="bg-slate-900 border border-slate-800 p-8 rounded-lg">
-                        <h4 className="text-xs font-bold text-white uppercase tracking-widest border-l-2 border-indigo-500 pl-3 mb-8">Build Settings (Opcional)</h4>
-                        <div className="space-y-6">
-                           <div className="space-y-2">
-                              <label className="text-[10px] uppercase font-bold text-slate-500">Build Command</label>
-                              <div className="flex items-center gap-3 bg-slate-950 border border-slate-800 rounded px-4 py-2.5 font-mono text-xs">
-                                 <span className="text-slate-600 bg-slate-900 px-2 rounded">$</span>
-                                 <input 
-                                   type="text" 
-                                   value={deploySettings.buildCommand}
-                                   onChange={(e) => setDeploySettings({...deploySettings, buildCommand: e.target.value})}
-                                   className="bg-transparent flex-1 focus:outline-none text-indigo-400" 
-                                 />
-                              </div>
-                           </div>
-                           <div className="space-y-2">
-                              <label className="text-[10px] uppercase font-bold text-slate-500">Output Directory</label>
-                              <input 
-                                type="text" 
-                                value={deploySettings.outputDir}
-                                onChange={(e) => setDeploySettings({...deploySettings, outputDir: e.target.value})}
-                                className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2.5 text-xs font-mono focus:ring-1 focus:ring-indigo-500 outline-none" 
-                              />
-                           </div>
-                        </div>
-                      </section>
-                    </div>
-
-                    <div className="col-span-12 lg:col-span-4 space-y-6">
-                       <div className="bg-slate-900 border border-slate-800 p-6 rounded-lg sticky top-8">
-                          <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-6">Resumen</h4>
-                          <div className="space-y-4 mb-8">
-                             <div className="flex justify-between text-xs">
-                                <span className="text-slate-500">Repositorio</span>
-                                <span className="text-white font-mono">{selectedRepo.name}</span>
-                             </div>
-                             <div className="flex justify-between text-xs">
-                                <span className="text-slate-500">Tipo</span>
-                                <span className="text-white">Despliegue Edge</span>
-                             </div>
-                             <div className="flex justify-between text-xs">
-                                <span className="text-slate-500">Región</span>
-                                <span className="text-white">Global (14 nodos)</span>
-                             </div>
-                          </div>
-                          <button 
-                            onClick={() => {
-                              setDeployStep('deploying');
-                              setTimeout(() => {
-                                const newService: Service = {
-                                  id: (services.length + 1).toString(),
-                                  name: deploySettings.name,
-                                  type: deploySettings.framework === 'other' ? 'Sitio Estático' : 'Servicio Web',
-                                  status: 'building',
-                                  updatedAt: 'Hace unos segundos',
-                                  url: `https://${deploySettings.name}.cloud-lift.app`,
-                                  repo: `org/${selectedRepo.name}`
-                                };
-                                
-                                setAllSettings(prev => ({
-                                  ...prev,
-                                  [newService.id]: {
-                                    rootDir: deploySettings.rootDir,
-                                    buildCommand: deploySettings.buildCommand,
-                                    outputDir: deploySettings.outputDir,
-                                    installCommand: 'npm install',
-                                    syncWithGithub: true
-                                  }
-                                }));
-                                
-                                setServices([newService, ...services]);
-                                setTimeout(() => {
-                                  setServices(prev => prev.map(s => s.id === newService.id ? { ...s, status: 'live' } : s));
-                                }, 10000);
-                                
-                                setView('dashboard');
-                                setDeployStep('select');
-                              }, 2000);
-                            }}
-                            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-widest rounded transition-all flex items-center justify-center gap-3 shadow-lg shadow-indigo-600/20"
-                          >
-                             Desplegar Proyecto <Rocket className="w-4 h-4" />
-                          </button>
-                       </div>
-
-                       <div className="bg-emerald-900/10 border border-emerald-500/20 p-6 rounded-lg flex gap-4">
-                          <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                          <div>
-                            <h4 className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1">Detección Inteligente</h4>
-                            <p className="text-[10px] text-slate-500 leading-relaxed">
-                               Hemos detectado que tu proyecto usa {selectedRepo.language}. Los ajustes sugeridos están listos para producción.
-                            </p>
-                          </div>
-                       </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {deployStep === 'deploying' && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center h-full text-center">
-                   <div className="w-24 h-24 relative mb-8">
-                      <div className="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
-                      <div className="absolute inset-0 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                      <Rocket className="absolute inset-0 m-auto w-8 h-8 text-indigo-400 animate-pulse" />
-                   </div>
-                   <h2 className="text-2xl font-bold text-white mb-2">Preparando Despegue...</h2>
-                   <p className="text-slate-500 text-sm max-w-xs uppercase tracking-widest font-bold">Iniciando orquestación de recursos globales</p>
-                </motion.div>
-              )}
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
