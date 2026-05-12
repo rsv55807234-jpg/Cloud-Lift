@@ -20,6 +20,8 @@ const nextConfig: NextConfig = {
     ],
   },
   output: 'standalone',
+  // Cloudflare prefers the edge runtime for some features
+  serverExternalPackages: [],
   transpilePackages: ['motion'],
   webpack: (config, {dev}) => {
     // HMR is disabled in AI Studio via DISABLE_HMR env var.
